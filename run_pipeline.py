@@ -1,6 +1,6 @@
 """Pipeline entry point; display configuration until data stages are implemented."""
 
-from scr import config
+from src import config
 
 
 def main() -> None:

@@ -1,5 +1,5 @@
-"""Local wildfire predictor package, using constants from ``scr.config``."""
+"""Local wildfire predictor package, using constants from ``src.config``."""
 
-from scr import config
+from . import config
 
 __all__ = ["config"]

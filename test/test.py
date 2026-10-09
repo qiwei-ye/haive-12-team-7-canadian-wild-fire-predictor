@@ -16,10 +16,29 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scr import config
+from src import config
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_train_validation_split_is_reproducible(self):
+        import numpy as np
+        from sklearn.model_selection import train_test_split
+
+        samples = np.arange(100)
+        split_options = {
+            "train_size": config.TRAIN_FRACTION,
+            "test_size": config.VALIDATION_FRACTION,
+            "random_state": config.RANDOM_SEED,
+        }
+        training, validation = train_test_split(samples, **split_options)
+        repeated_training, repeated_validation = train_test_split(samples, **split_options)
+        self.assertEqual(len(training), 80)
+        self.assertEqual(len(validation), 20)
+        self.assertEqual(np.intersect1d(training, validation).size, 0)
+        np.testing.assert_array_equal(np.sort(np.concatenate((training, validation))), samples)
+        np.testing.assert_array_equal(training, repeated_training)
+        np.testing.assert_array_equal(validation, repeated_validation)
+
     def test_requested_time_windows(self):
         self.assertEqual(
             config.TIME_WINDOWS,
@@ -201,14 +220,14 @@ class BackendTests(unittest.TestCase):
         features = np.arange(40, dtype=float).reshape(20, 2)
         target = features[:, 0] * 0.5 + 1
         models = (
-            XGBRegressor(n_estimators=2, max_depth=2, n_jobs=1, random_state=0),
+            XGBRegressor(n_estimators=2, max_depth=2, n_jobs=1, random_state=config.RANDOM_SEED),
             LGBMRegressor(
                 n_estimators=2, max_depth=2, min_child_samples=2, n_jobs=1,
-                verbosity=-1, random_state=0,
+                verbosity=-1, random_state=config.RANDOM_SEED,
             ),
             CatBoostRegressor(
                 iterations=2, depth=2, thread_count=1, verbose=False,
-                allow_writing_files=False, random_seed=0,
+                allow_writing_files=False, random_seed=config.RANDOM_SEED,
             ),
         )
         for model in models:
