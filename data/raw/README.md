@@ -325,6 +325,33 @@
 
 ---
 
+**File name:** `ciffc.csv`
+
+**File path:** `data/raw/fire/CIFFC/ciffc.csv`
+
+**File purpose:** Provide Canadian wildland fire records, including agency identifiers, situation report and status dates, control status, causes, response categories, reported areas, and locations, in a headerless CSV.
+
+**File source:** [Canadian Interagency Forest Fire Centre (CIFFC) - National Fires List](https://ciffc.net/national).
+
+**Time horizon:** 2020-05-26 to 2026-10-09
+
+**Grid resolution:** Not applicable
+
+| Variable | Definition | Units / format |
+| --- | --- | --- |
+| Column 1 (`agency_fire_id`) | Fire identifier assigned by the source agency. | Text |
+| Column 2 (`agency_code`) | Source agency for the fire record. | Province or territory code, or `PC` (Parks Canada) |
+| Column 3 (`situation_report_date`) | Recorded situation report date and time. | `YYYY-MM-DDTHH:MM:SS` |
+| Column 4 (`status_date`) | Date and time of the latest fire status update. | `YYYY-MM-DDTHH:MM:SS` |
+| Column 5 (`stage_of_control`) | Recorded stage of control. | `out_of_control`, `being_held`, `under_control`, or `extinguished` |
+| Column 6 (`national_fire_cause`) | National fire-cause classification. | `human`, `natural`, or `undetermined` |
+| Column 7 (`response_type`) | Fire management response category. | `full_response`, `modified_response`, or `monitored_response` |
+| Column 8 (`fire_size`) | Fire area reported by the source agency. | Hectares (ha) |
+| Column 9 (`latitude`) | Latitude of the reported fire location. | Decimal degrees north |
+| Column 10 (`longitude`) | Longitude of the reported fire location. | Decimal degrees east; negative values indicate west |
+
+---
+
 **File name:** `landcover-2020-classification.tif`
 
 **File path:** `data/raw/geological/2020 Land Cover of Canada/landcover-2020-classification.tif`
