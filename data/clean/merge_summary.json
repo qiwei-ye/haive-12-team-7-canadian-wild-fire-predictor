@@ -964,5 +964,26 @@
     "fire_history_coverage": "Available CIFFC reports only; missing historical reporting does not establish absence",
     "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
     "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated"
+  },
+  "merged_netcdf": {
+    "file": "merged.nc",
+    "dimensions": {
+      "cell": 2168,
+      "time": 2187
+    },
+    "partition_variable": "partition",
+    "partition_labels": [
+      "training",
+      "validation",
+      "test"
+    ],
+    "static_variables": [
+      "MIN_ELEV",
+      "MAX_ELEV",
+      "MEAN_ELEV",
+      "ELEVDIFF",
+      "landcover"
+    ],
+    "csv_date_coordinate": "time"
   }
 }

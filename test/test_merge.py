@@ -143,6 +143,20 @@ class MergeTests(unittest.TestCase):
             summary = json.loads((root / "clean" / "merge_summary.json").read_text())
             self.assertEqual(summary["partitions"]["training"]["rows"], 12)
             self.assertEqual(summary["partitions"]["training"]["missing_targets"], 1)
+            with xr.open_dataset(root / "clean" / config.CLEAN_MERGED_FILENAME) as merged:
+                self.assertEqual(dict(merged.sizes), {"cell": 4, "time": 6})
+                self.assertEqual(merged.partition.dims, ("time",))
+                self.assertEqual(merged.partition.values.tolist(), ["training"] * 3 + ["validation"] + ["test"] * 2)
+                self.assertEqual(merged.landcover.dims, ("cell",))
+                self.assertEqual(merged.tas.attrs["units"], config.CLIMATE_UNITS["tas"])
+                self.assertEqual(merged.landcover.encoding["dtype"], np.dtype("int16"))
+                self.assertEqual(merged.is_large_fire.encoding["dtype"], np.dtype("int8"))
+                for path in outputs:
+                    frame = pd.read_csv(path, float_precision="round_trip")
+                    daily = merged.sel(time=path.stem)
+                    for column in frame.columns.difference(["date"]):
+                        np.testing.assert_equal(daily[column].values, frame[column].values)
+                self.assertTrue(np.isnan(merged.is_large_fire.sel(time="2020-09-02").values[2]))
             for path, content in original.items():
                 self.assertEqual(path.read_bytes(), content)
 
@@ -176,6 +190,60 @@ class MergeTests(unittest.TestCase):
             self.assertFalse(any(path.exists() for path in stale))
             later = pd.read_csv(destination / "training" / "2020-09-03.csv")
             self.assertEqual(later.previous_fire.tolist(), [1, 1, 1, 0])
+            with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as merged:
+                self.assertEqual(pd.DatetimeIndex(merged.time.values).strftime("%Y-%m-%d").tolist(),
+                                 ["2020-09-01", "2020-09-03", "2020-09-04", "2020-09-06"])
+                self.assertEqual(merged.partition.values.tolist(), ["training", "training", "validation", "test"])
+
+    def test_netcdf_only_aligns_shuffled_cells_without_loading_raw_or_processed_inputs(self):
+        from run_pipeline import main
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            processed, boundary, windows = self.fixture(root)
+            destination = root / "clean"
+            with patch.object(config, "TIME_WINDOWS", windows), self.assertLogs(level="WARNING"):
+                data_merge.merge(processed, destination, boundary)
+            with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as dataset:
+                expected = dataset.load()
+            path = destination / "training" / "2020-09-02.csv"
+            frame = pd.read_csv(path).iloc[::-1]
+            frame.to_csv(path, index=False)
+            original = {path: path.read_bytes() for path in destination.rglob("*.csv")}
+            with patch.object(config, "TIME_WINDOWS", windows), patch.object(data_merge, "merge") as stage:
+                result = main(["merge", "--netcdf-only", "--output-dir", str(destination),
+                               "--processed-dir", str(root / "missing"), "--boundary", str(root / "missing.shp")])
+            self.assertEqual(result, 0)
+            stage.assert_not_called()
+            with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as actual:
+                xr.testing.assert_equal(actual, expected)
+            for path, content in original.items():
+                self.assertEqual(path.read_bytes(), content)
+
+    def test_netcdf_rejects_missing_csvs_grid_changes_and_varying_static_values(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            processed, boundary, windows = self.fixture(root)
+            destination = root / "clean"
+            with patch.object(config, "TIME_WINDOWS", windows), self.assertLogs(level="WARNING"):
+                data_merge.merge(processed, destination, boundary)
+            path = destination / "training" / "2020-09-02.csv"
+            original_csv = path.read_bytes()
+            netcdf = destination / config.CLEAN_MERGED_FILENAME
+            original_netcdf = netcdf.read_bytes()
+            for problem, message in (("missing", "daily CSVs are missing"), ("grid", "spatial grid differs"),
+                                     ("static", "Static predictor"), ("binary", "Non-binary")):
+                with self.subTest(problem=problem):
+                    frame = pd.read_csv(path)
+                    if problem == "missing":
+                        path.unlink()
+                    else:
+                        column = {"grid": "lat", "static": "MEAN_ELEV", "binary": "previous_fire"}[problem]
+                        frame.loc[0, column] += 2
+                        frame.to_csv(path, index=False)
+                    with patch.object(config, "TIME_WINDOWS", windows), self.assertRaisesRegex((ValueError, FileNotFoundError), message):
+                        data_merge.merge_csvs_to_netcdf(destination)
+                    self.assertEqual(netcdf.read_bytes(), original_netcdf)
+                    path.write_bytes(original_csv)
 
     def test_inconsistent_predictor_coordinates_are_rejected_before_writing(self):
         with TemporaryDirectory() as directory:

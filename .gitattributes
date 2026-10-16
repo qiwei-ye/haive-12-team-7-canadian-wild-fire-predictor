@@ -1,1 +1,2 @@
 data/processed/climate/CanSIPSv3/forecasting/*.nc filter=lfs diff=lfs merge=lfs -text
+data/clean/merged.nc filter=lfs diff=lfs merge=lfs -text

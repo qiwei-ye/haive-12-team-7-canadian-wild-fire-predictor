@@ -15,7 +15,7 @@ The merge reads `src/config.py` for dates, resolution, variables, units, and spl
 fractions. It keeps the configured testing window separate and divides the earlier
 training/validation window chronologically: the first 80% of whole dates are
 training, and the remaining dates are validation. All cells for a date stay together.
-The training count is rounded down. No random row split or partition column is used.
+The training count is rounded down. No random row split or CSV partition column is used.
 The configured exclusions are applied after determining these boundaries: 109
 cells previously missing land cover are removed from every processed spatial
 dataset and daily table. Four dates listed in `EXCLUDED_HISTORICAL_DATES` have no
@@ -28,7 +28,19 @@ predictors. `data/clean/merge_summary.json` records exact dates, counts, units,
 definitions, and every excluded fire record. Processed and clean outputs are
 tracked by Git; raw datasets remain local.
 
-The two large CanSIPS forecast NetCDF files use Git LFS. Install Git LFS before
+The merge also creates `data/clean/merged.nc` from all daily CSVs. Its dimensions
+are `time` and `cell`; `partition(time)` contains `training`, `validation`, or
+`test`, applying to all cells on that date. The CSV `date` column becomes `time`.
+Elevation and land cover are stored once per cell; the other predictors and target
+use `(time, cell)`. Coordinates, units, category codes, and missing values are
+preserved. Excluded dates remain absent. To rebuild only this NetCDF from existing
+CSVs, without rerunning preprocessing or rewriting the CSVs, use:
+
+```powershell
+.venv/Scripts/python.exe run_pipeline.py merge --netcdf-only
+```
+
+The large CanSIPS forecast files and consolidated `merged.nc` use Git LFS. Install Git LFS before
 cloning; if these files contain pointers instead of NetCDF data, run
 `git lfs install --local` followed by `git lfs pull` in the repository.
 

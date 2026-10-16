@@ -143,6 +143,119 @@ def load_predictors(root, grid, split):
     return dataset.reindex(time=dates)
 
 
+def merge_csvs_to_netcdf(output_dir=None):
+    """Combine existing CSVs, with partition(time), preserving values and gaps.
+
+    Static columns must agree across CSVs and are stored once per cell.
+    Continuous values use float64 to preserve the precision read from CSVs.
+    """
+    directory = Path(output_dir) if output_dir is not None else config.CLEAN_DATA_DIR
+    if any(directory.resolve().is_relative_to(path.resolve())
+           for path in (config.RAW_DATA_DIR, config.PROCESSED_DATA_DIR)):
+        raise ValueError("Merged NetCDF must be separate from raw and processed inputs")
+    summary_path = directory / "merge_summary.json"
+    if not summary_path.is_file():
+        raise FileNotFoundError(f"Clean CSV metadata is missing: {summary_path}; run the merge stage first")
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    partitions = partition_dates()
+    entries = [(day, name, directory / name / f"{day.date().isoformat()}.csv")
+               for name, days in partitions.items() for day in days]
+    expected_paths = {path for _, _, path in entries}
+    actual_paths = {path for name in partitions for path in (directory / name).glob("*.csv")}
+    missing, extra = expected_paths - actual_paths, actual_paths - expected_paths
+    if missing:
+        raise FileNotFoundError(f"{len(missing)} daily CSVs are missing; examples: {sorted(map(str, missing))[:5]}")
+    if extra:
+        raise ValueError(f"Unexpected CSV dates outside configured partitions: {sorted(map(str, extra))[:5]}")
+    columns = summary["columns"]
+    static_names = [name for names in config.MERGE_STATIC_PREDICTORS.values() for name in names]
+    binary_names = ("previous_fire", "previous_fire_neighbour", "is_large_fire")
+    dynamic_names = [name for name in columns if name not in ("date", "cell", "lat", "lon", *static_names)]
+    if set(columns) != {"date", "cell", "lat", "lon", *static_names, *config.CLIMATE_VARIABLES, *binary_names}:
+        raise ValueError("Clean CSV metadata does not match the configured predictor schema")
+    for index, (day, partition, path) in enumerate(entries):
+        frame = pd.read_csv(path, keep_default_na=False, na_values=[""], float_precision="round_trip")
+        if list(frame.columns) != columns or not frame.date.eq(day.date().isoformat()).all():
+            raise ValueError(f"Inconsistent columns or row dates in {path}")
+        if frame.cell.isna().any() or frame.cell.duplicated().any():
+            raise ValueError(f"Missing or duplicate cell identifiers in {path}")
+        frame = frame.set_index("cell").sort_index()
+        if index == 0:
+            cells = frame.index.to_numpy()
+            if len(cells) != summary["spatial_cells_per_day"] or np.isin(cells, config.EXCLUDED_CELL_IDS).any():
+                raise ValueError("Clean CSV cells do not match the retained grid")
+            latitude, longitude = frame.lat.to_numpy(), frame.lon.to_numpy()
+            if not (np.isfinite(latitude).all() and np.isfinite(longitude).all()
+                    and np.array_equal(cells, cell_ids(latitude, longitude))):
+                raise ValueError("Clean CSV coordinates do not match their grid identifiers")
+            static = {name: frame[name].to_numpy(dtype=np.float64) for name in static_names}
+            dynamic = {name: np.empty((len(entries), len(cells)), dtype=np.float64) for name in dynamic_names}
+        if not (np.array_equal(frame.index.to_numpy(), cells)
+                and np.array_equal(frame.lat.to_numpy(), latitude)
+                and np.array_equal(frame.lon.to_numpy(), longitude)):
+            raise ValueError(f"CSV spatial grid differs from the common grid: {path}")
+        for name in static_names:
+            if not np.array_equal(frame[name].to_numpy(dtype=np.float64), static[name], equal_nan=True):
+                raise ValueError(f"Static predictor {name} changes between CSVs: {path}")
+        for name in dynamic_names:
+            values = frame[name].to_numpy(dtype=np.float64)
+            if name in binary_names and not np.isin(values[~np.isnan(values)], [0, 1]).all():
+                raise ValueError(f"Non-binary {name} values in {path}")
+            dynamic[name][index] = values
+        if (index + 1) % 365 == 0:
+            LOGGER.info("Combined %s daily CSVs", index + 1)
+    landcover = static["landcover"]
+    finite = landcover[~np.isnan(landcover)]
+    if not (np.equal(finite, np.rint(finite)).all()
+            and ((finite >= 0) & (finite <= np.iinfo(np.int16).max)).all()):
+        raise ValueError("Land cover must contain integer category codes or missing values")
+    dataset = xr.Dataset(
+        {**{name: ("cell", values) for name, values in static.items()},
+         **{name: (("time", "cell"), values) for name, values in dynamic.items()},
+         "partition": ("time", np.asarray([name for _, name, _ in entries], dtype=str))},
+        coords={"time": pd.DatetimeIndex([day for day, _, _ in entries]), "cell": cells,
+                "lat": ("cell", latitude), "lon": ("cell", longitude)},
+        attrs={"crs": config.TARGET_CRS, "source_csv_count": len(entries),
+               "source_csv_layout": "<partition>/YYYY-MM-DD.csv", "source_columns": json.dumps(columns),
+               "latitude_resolution_degrees": config.TARGET_LATITUDE_RESOLUTION_DEGREES,
+               "longitude_resolution_degrees": config.TARGET_LONGITUDE_RESOLUTION_DEGREES,
+               "time_sampling": "Daily observations; configured excluded dates are omitted",
+               "excluded_historical_dates": ",".join(config.EXCLUDED_HISTORICAL_DATES),
+               "excluded_cell_ids": ",".join(map(str, config.EXCLUDED_CELL_IDS)),
+               "target_definition": summary["definitions"]["is_large_fire"],
+               "fire_history_coverage": summary["definitions"]["fire_history_coverage"]},
+    )
+    dataset.time.attrs = {"standard_name": "time", "long_name": "Daily CSV date"}
+    dataset.lat.attrs = {"standard_name": "latitude", "units": summary["units"]["lat"]}
+    dataset.lon.attrs = {"standard_name": "longitude", "units": summary["units"]["lon"]}
+    dataset.partition.attrs = {"long_name": "Temporal partition inherited from the CSV folder",
+                               "labels": ",".join(partitions), "applies_to": "Every cell at this time"}
+    for name in (*static_names, *dynamic_names):
+        dataset[name].attrs["units"] = summary["units"].get(name, "1")
+        if name in summary["definitions"]:
+            dataset[name].attrs["description"] = summary["definitions"][name]
+    dataset.landcover.attrs["variable_type"] = "categorical"
+    encoding = {name: {"zlib": True, "complevel": 4} for name in (*static_names, *dynamic_names)}
+    for name in binary_names:
+        encoding[name].update(dtype="int8", _FillValue=np.int8(-1))
+    encoding["landcover"].update(dtype="int16", _FillValue=np.int16(-32768))
+    encoding["time"] = {"dtype": "int32", "units": f"days since {config.TRAIN_VALIDATION_START_DATE}",
+                        "calendar": "proleptic_gregorian"}
+    path = directory / config.CLEAN_MERGED_FILENAME
+    temporary = path.with_suffix(".partial.nc")
+    try:
+        dataset.to_netcdf(temporary, engine="netcdf4", encoding=encoding)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    summary["merged_netcdf"] = {"file": path.name, "dimensions": dict(dataset.sizes),
+                                "partition_variable": "partition", "partition_labels": list(partitions),
+                                "static_variables": static_names, "csv_date_coordinate": "time"}
+    summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    LOGGER.info("Saved %s (%s dates by %s cells)", path, len(entries), len(cells))
+    return path
+
+
 def merge(processed_dir=None, output_dir=None, boundary_path=None):
     """Write one all-cell CSV per historical day, keeping original inputs intact."""
     root = Path(processed_dir) if processed_dir is not None else config.PROCESSED_DATA_DIR
@@ -260,5 +373,6 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
         },
     }
     (destination / "merge_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    merge_csvs_to_netcdf(destination)
     LOGGER.info("Saved %s daily tables (%s rows) under %s", len(outputs), len(outputs) * grid.sizes["cell"], destination)
     return outputs

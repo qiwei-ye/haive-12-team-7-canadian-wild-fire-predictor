@@ -3,6 +3,7 @@
 Usage: .venv/Scripts/python.exe run_pipeline.py preprocess [--only climate|geological]
        .venv/Scripts/python.exe run_pipeline.py preprocess --only fire
        .venv/Scripts/python.exe run_pipeline.py merge
+       .venv/Scripts/python.exe run_pipeline.py merge --netcdf-only
 
 Outputs are NetCDF files under data/processed/climate/<source>/<split>/ and
 data/processed/static/<source>/. grid.nc stores the common Canadian cell centres;
@@ -22,6 +23,8 @@ It runs separately with --only fire;
 the default 'all' selection continues to process climate/geological predictors.
 
 Merge writes one all-cell CSV per day under data/clean/{training,validation,test}.
+It also combines those CSVs in data/clean/merged.nc, with partition(time).
+Use merge --netcdf-only to combine existing CSVs without regenerating them.
 Training/validation dates are split chronologically using the configured fractions.
 Only ORRC climate, elevation, land cover, earlier fire history, and CIFFC targets
 are included. Missing sizes/predictors remain blank. Zero targets mean no reported
@@ -48,6 +51,7 @@ def main(argv=None):
     merge.add_argument("--processed-dir", type=Path, default=config.PROCESSED_DATA_DIR)
     merge.add_argument("--output-dir", type=Path, default=config.CLEAN_DATA_DIR)
     merge.add_argument("--boundary", type=Path, default=config.ECODISTRICTS_PATH)
+    merge.add_argument("--netcdf-only", action="store_true", help="Combine existing daily CSVs into merged.nc only")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
@@ -63,7 +67,10 @@ def main(argv=None):
     if args.command == "merge":
         from src import data_merge
         try:
-            data_merge.merge(args.processed_dir, args.output_dir, args.boundary)
+            if args.netcdf_only:
+                data_merge.merge_csvs_to_netcdf(args.output_dir)
+            else:
+                data_merge.merge(args.processed_dir, args.output_dir, args.boundary)
         except (FileNotFoundError, ValueError, OSError) as error:
             logger.error("Historical merging failed: %s", error)
             return 1
