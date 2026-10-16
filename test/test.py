@@ -20,24 +20,20 @@ from src import config
 
 
 class ConfigurationTests(unittest.TestCase):
-    def test_train_validation_split_is_reproducible(self):
-        import numpy as np
-        from sklearn.model_selection import train_test_split
+    def test_train_validation_split_is_chronological_and_reproducible(self):
+        import pandas as pd
+        from src.data_merge import partition_dates
 
-        samples = np.arange(100)
-        split_options = {
-            "train_size": config.TRAIN_FRACTION,
-            "test_size": config.VALIDATION_FRACTION,
-            "random_state": config.RANDOM_SEED,
-        }
-        training, validation = train_test_split(samples, **split_options)
-        repeated_training, repeated_validation = train_test_split(samples, **split_options)
-        self.assertEqual(len(training), 80)
-        self.assertEqual(len(validation), 20)
-        self.assertEqual(np.intersect1d(training, validation).size, 0)
-        np.testing.assert_array_equal(np.sort(np.concatenate((training, validation))), samples)
-        np.testing.assert_array_equal(training, repeated_training)
-        np.testing.assert_array_equal(validation, repeated_validation)
+        partitions = partition_dates()
+        repeated = partition_dates()
+        expected = pd.date_range(*config.TIME_WINDOWS["training_validation"], freq=config.TARGET_FREQUENCY)
+        self.assertEqual(len(partitions["training"]), int(len(expected) * config.TRAIN_FRACTION))
+        expected = expected[~expected.isin(pd.to_datetime(config.EXCLUDED_HISTORICAL_DATES))]
+        self.assertTrue(partitions["training"].append(partitions["validation"]).equals(expected))
+        self.assertLess(partitions["training"][-1], partitions["validation"][0])
+        self.assertLess(partitions["validation"][-1], partitions["test"][0])
+        for name in partitions:
+            self.assertTrue(partitions[name].equals(repeated[name]))
 
     def test_requested_time_windows(self):
         self.assertEqual(

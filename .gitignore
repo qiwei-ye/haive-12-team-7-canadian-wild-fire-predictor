@@ -6,8 +6,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
-# Keep the data folder structure while storing raw datasets locally.
+# Keep raw datasets local while retaining documentation and folder structure.
 data/raw/climate/*
 !data/raw/climate/.gitkeep
 data/raw/fire/*
