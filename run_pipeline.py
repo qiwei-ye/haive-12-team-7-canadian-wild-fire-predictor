@@ -27,7 +27,8 @@ It also combines those CSVs in data/clean/merged.nc, with partition(time).
 Use merge --netcdf-only to combine existing CSVs without regenerating them.
 Training/validation dates are split chronologically using the configured fractions.
 Only ORRC climate, elevation, land cover, earlier fire history, and CIFFC targets
-are included. Missing sizes/predictors remain blank. Zero targets mean no reported
+are included. Missing predictors remain blank; missing target indicators use 0.
+Zero targets mean no reported
 large fire, not verified absence; merge_summary.json documents coverage/exclusions.
 """
 

@@ -1,7 +1,7 @@
 """Daily historical predictor/CIFFC tables, with strictly earlier fire history.
 
-Zero labels mean no *reported* large fire, not verified absence of fire. Unknown
-reported sizes remain missing unless another known large fire establishes a 1.
+Zero labels mean no *reported* large fire, not verified absence of fire. Missing
+cleaned indicators use 0; a known large fire in the cell/day still establishes 1.
 """
 
 import json
@@ -18,6 +18,14 @@ from .preprocessing import cell_ids, load_boundary, validate_grid, validate_outp
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _clean_target_definitions():
+    return {
+        "is_large_fire": f"1 if any reported fire in this cell on this report date is >= {config.LARGE_FIRE_THRESHOLD_HA} ha; "
+                         "otherwise 0, including missing indicators and unknown reported fire sizes",
+        "missing_values": "Missing is_large_fire indicators are replaced with 0; missing predictor values remain unknown and are not imputed",
+    }
 
 
 def partition_dates():
@@ -107,9 +115,7 @@ def daily_fire_fields(records, dates, neighbours):
         target = np.zeros(count, dtype=np.float32)
         today = reports.get(day)
         if today is not None:
-            unknown = today.loc[today.is_large_fire.isna(), "_cell_index"].to_numpy(dtype=int)
             large = today.loc[today.is_large_fire.eq(1), "_cell_index"].to_numpy(dtype=int)
-            target[unknown] = np.nan
             target[large] = 1
         yield day, {
             "previous_fire": seen.astype(np.int8),
@@ -148,6 +154,7 @@ def merge_csvs_to_netcdf(output_dir=None):
 
     Static columns must agree across CSVs and are stored once per cell.
     Continuous values use float64 to preserve the precision read from CSVs.
+    Missing target indicators are replaced with 0 in both CSVs and NetCDF.
     """
     directory = Path(output_dir) if output_dir is not None else config.CLEAN_DATA_DIR
     if any(directory.resolve().is_relative_to(path.resolve())
@@ -157,6 +164,7 @@ def merge_csvs_to_netcdf(output_dir=None):
     if not summary_path.is_file():
         raise FileNotFoundError(f"Clean CSV metadata is missing: {summary_path}; run the merge stage first")
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["definitions"].update(_clean_target_definitions())
     partitions = partition_dates()
     entries = [(day, name, directory / name / f"{day.date().isoformat()}.csv")
                for name, days in partitions.items() for day in days]
@@ -173,12 +181,27 @@ def merge_csvs_to_netcdf(output_dir=None):
     dynamic_names = [name for name in columns if name not in ("date", "cell", "lat", "lon", *static_names)]
     if set(columns) != {"date", "cell", "lat", "lon", *static_names, *config.CLIMATE_VARIABLES, *binary_names}:
         raise ValueError("Clean CSV metadata does not match the configured predictor schema")
+    target_counts = {name: {"positive_targets": 0, "missing_targets": 0} for name in partitions}
     for index, (day, partition, path) in enumerate(entries):
         frame = pd.read_csv(path, keep_default_na=False, na_values=[""], float_precision="round_trip")
         if list(frame.columns) != columns or not frame.date.eq(day.date().isoformat()).all():
             raise ValueError(f"Inconsistent columns or row dates in {path}")
         if frame.cell.isna().any() or frame.cell.duplicated().any():
             raise ValueError(f"Missing or duplicate cell identifiers in {path}")
+        missing_target = frame.is_large_fire.isna()
+        if missing_target.any():
+            # Preserve other fields' original text when updating legacy CSVs.
+            text = pd.read_csv(path, dtype="string", keep_default_na=False)
+            text.loc[missing_target, "is_large_fire"] = "0"
+            temporary_csv = path.with_suffix(".partial.csv")
+            try:
+                text.to_csv(temporary_csv, index=False, encoding="utf-8")
+                temporary_csv.replace(path)
+            finally:
+                temporary_csv.unlink(missing_ok=True)
+            frame["is_large_fire"] = frame.is_large_fire.fillna(0)
+            LOGGER.info("%s: replaced %s missing large-fire indicators with 0", path, int(missing_target.sum()))
+        target_counts[partition]["positive_targets"] += int(frame.is_large_fire.eq(1).sum())
         frame = frame.set_index("cell").sort_index()
         if index == 0:
             cells = frame.index.to_numpy()
@@ -209,6 +232,7 @@ def merge_csvs_to_netcdf(output_dir=None):
     if not (np.equal(finite, np.rint(finite)).all()
             and ((finite >= 0) & (finite <= np.iinfo(np.int16).max)).all()):
         raise ValueError("Land cover must contain integer category codes or missing values")
+    dynamic["is_large_fire"] = dynamic["is_large_fire"].astype(np.int8)
     dataset = xr.Dataset(
         {**{name: ("cell", values) for name, values in static.items()},
          **{name: (("time", "cell"), values) for name, values in dynamic.items()},
@@ -238,6 +262,7 @@ def merge_csvs_to_netcdf(output_dir=None):
     encoding = {name: {"zlib": True, "complevel": 4} for name in (*static_names, *dynamic_names)}
     for name in binary_names:
         encoding[name].update(dtype="int8", _FillValue=np.int8(-1))
+    encoding["is_large_fire"]["_FillValue"] = None
     encoding["landcover"].update(dtype="int16", _FillValue=np.int16(-32768))
     encoding["time"] = {"dtype": "int32", "units": f"days since {config.TRAIN_VALIDATION_START_DATE}",
                         "calendar": "proleptic_gregorian"}
@@ -251,6 +276,8 @@ def merge_csvs_to_netcdf(output_dir=None):
     summary["merged_netcdf"] = {"file": path.name, "dimensions": dict(dataset.sizes),
                                 "partition_variable": "partition", "partition_labels": list(partitions),
                                 "static_variables": static_names, "csv_date_coordinate": "time"}
+    for name, counts in target_counts.items():
+        summary["partitions"][name].update(counts)
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     LOGGER.info("Saved %s (%s dates by %s cells)", path, len(entries), len(cells))
     return path
@@ -306,7 +333,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
     if len(excluded):
         LOGGER.warning("Excluded %s fire records: %s", len(excluded), excluded.exclusion_reason.value_counts().to_dict())
     LOGGER.warning("CIFFC reporting is incomplete: zero means no reported large fire, not verified absence. "
-                   "Unknown reported sizes remain missing; history uses available reports only.")
+                   "Missing cleaned large-fire indicators use 0; history uses available reports only.")
     all_dates = partitions["training"].append(partitions["validation"]).append(partitions["test"])
     membership = {day: name for name, dates in partitions.items() for day in dates}
     neighbours = connecting_cells(grid)
@@ -364,9 +391,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
             "previous_fire": "1 if any available fire report in this cell strictly precedes the row date; otherwise 0",
             "previous_fire_neighbour": "1 if any available earlier report is in a retained connecting cell; otherwise 0",
             "neighbour_offsets": config.FIRE_NEIGHBOUR_OFFSETS,
-            "is_large_fire": f"1 if any reported fire in this cell on this report date is >= {config.LARGE_FIRE_THRESHOLD_HA} ha; "
-                             "missing if no known large fire but a reported size is unknown; otherwise 0 (no reported large fire)",
-            "missing_values": "Empty CSV fields remain unknown; predictors are not imputed",
+            **_clean_target_definitions(),
             "fire_history_coverage": "Available CIFFC reports only; missing historical reporting does not establish absence",
             "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
             "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated",

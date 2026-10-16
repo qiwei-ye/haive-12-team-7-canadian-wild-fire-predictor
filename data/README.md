@@ -32,13 +32,17 @@ The merge also creates `data/clean/merged.nc` from all daily CSVs. Its dimension
 are `time` and `cell`; `partition(time)` contains `training`, `validation`, or
 `test`, applying to all cells on that date. The CSV `date` column becomes `time`.
 Elevation and land cover are stored once per cell; the other predictors and target
-use `(time, cell)`. Coordinates, units, category codes, and missing values are
-preserved. Excluded dates remain absent. To rebuild only this NetCDF from existing
-CSVs, without rerunning preprocessing or rewriting the CSVs, use:
+use `(time, cell)`. Coordinates, units, category codes, and missing predictor values
+are preserved. Missing `is_large_fire` indicators use `0` in both formats.
+Excluded dates remain absent. To rebuild this NetCDF from existing CSVs without
+rerunning preprocessing or regenerating daily predictors, use:
 
 ```powershell
 .venv/Scripts/python.exe run_pipeline.py merge --netcdf-only
 ```
+
+This command also replaces any missing target indicators in existing CSVs with
+`0` so the CSVs and NetCDF remain consistent; other CSV fields are preserved.
 
 The large CanSIPS forecast files and consolidated `merged.nc` use Git LFS. Install Git LFS before
 cloning; if these files contain pointers instead of NetCDF data, run
@@ -52,7 +56,7 @@ cloning; if these files contain pointers instead of NetCDF data, run
 | `landcover` | Modal 2020 land-cover category code; categorical, without interpolation. |
 | `previous_fire` | 1 if an available fire report in this cell strictly precedes this date; otherwise 0. Any reported fire counts, regardless of size. |
 | `previous_fire_neighbour` | 1 if an available earlier report is in one of the eight retained side- or corner-sharing cells; otherwise 0. The current cell is excluded. |
-| `is_large_fire` | 1 if at least one reported fire in this cell on this date meets the configured large-fire threshold; missing if no known large fire exists but at least one reported size is unknown; otherwise 0. |
+| `is_large_fire` | 1 if at least one reported fire in this cell on this date meets the configured large-fire threshold; otherwise 0, including missing indicators and unknown reported fire sizes. |
 
 History carries forward across the training, validation, and testing boundaries;
 same-day and future reports never enter a row's history. Multiple fires in a cell
@@ -64,8 +68,10 @@ the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 
 CIFFC reporting is incomplete, especially in the earlier historical years. Zero
 targets mean **no reported large fire**, not verified absence. Zero history values
-mean **no earlier fire in the available reports**, not no fire ever. Unknown sizes
-and missing climate/static values remain empty CSV fields; nothing is imputed.
+mean **no earlier fire in the available reports**, not no fire ever. Unknown fire
+sizes remain missing in the processed CIFFC source. Cleaned large-fire indicators
+use `0` for missing values. Missing climate/static predictors remain empty CSV
+fields and are not imputed.
 
 Fire locations outside the Canadian boundary or within cells absent from the
 existing centre-filtered grid are excluded and documented in the summary. They

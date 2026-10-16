@@ -42,8 +42,8 @@ class MergeTests(unittest.TestCase):
         np.testing.assert_array_equal(fields[days[0]]["previous_fire_neighbour"], [0, 0, 0, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_fire"], [1, 0, 0, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_fire_neighbour"], [0, 1, 1, 1])
-        # A known large fire wins over an unknown size in the same cell/day.
-        np.testing.assert_allclose(fields[days[1]]["is_large_fire"], [0, 1, np.nan, 0], equal_nan=True)
+        # Unknown indicators use zero; a known large fire in the cell/day wins.
+        np.testing.assert_array_equal(fields[days[1]]["is_large_fire"], [0, 1, 0, 0])
         np.testing.assert_array_equal(fields[days[2]]["previous_fire"], [1, 1, 1, 0])
         self.assertEqual(fields[days[-1]]["previous_fire"][3], 0)
         self.assertEqual(fields[days[-1]]["is_large_fire"][3], 1)
@@ -142,7 +142,7 @@ class MergeTests(unittest.TestCase):
             self.assertEqual(testing.previous_fire.tolist(), [1, 1, 1, 0])
             summary = json.loads((root / "clean" / "merge_summary.json").read_text())
             self.assertEqual(summary["partitions"]["training"]["rows"], 12)
-            self.assertEqual(summary["partitions"]["training"]["missing_targets"], 1)
+            self.assertEqual(summary["partitions"]["training"]["missing_targets"], 0)
             with xr.open_dataset(root / "clean" / config.CLEAN_MERGED_FILENAME) as merged:
                 self.assertEqual(dict(merged.sizes), {"cell": 4, "time": 6})
                 self.assertEqual(merged.partition.dims, ("time",))
@@ -156,7 +156,8 @@ class MergeTests(unittest.TestCase):
                     daily = merged.sel(time=path.stem)
                     for column in frame.columns.difference(["date"]):
                         np.testing.assert_equal(daily[column].values, frame[column].values)
-                self.assertTrue(np.isnan(merged.is_large_fire.sel(time="2020-09-02").values[2]))
+                self.assertEqual(merged.is_large_fire.sel(time="2020-09-02").values[2], 0)
+                self.assertFalse(merged.is_large_fire.isnull().any())
             for path, content in original.items():
                 self.assertEqual(path.read_bytes(), content)
 
@@ -218,6 +219,32 @@ class MergeTests(unittest.TestCase):
                 xr.testing.assert_equal(actual, expected)
             for path, content in original.items():
                 self.assertEqual(path.read_bytes(), content)
+
+    def test_legacy_missing_indicators_become_zero_in_csv_and_netcdf(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            processed, boundary, windows = self.fixture(root)
+            destination = root / "clean"
+            with patch.object(config, "TIME_WINDOWS", windows), self.assertLogs(level="WARNING"):
+                data_merge.merge(processed, destination, boundary)
+            path = destination / "training" / "2020-09-02.csv"
+            frame = pd.read_csv(path, dtype="string", keep_default_na=False)
+            frame.loc[2, "is_large_fire"] = ""
+            frame.to_csv(path, index=False)
+            original = pd.read_csv(path, dtype="string", keep_default_na=False)
+            processed_fire = (processed / "fire" / "ciffc.csv").read_bytes()
+            with patch.object(config, "TIME_WINDOWS", windows):
+                data_merge.merge_csvs_to_netcdf(destination)
+            actual = pd.read_csv(path, dtype="string", keep_default_na=False)
+            pd.testing.assert_frame_equal(actual.drop(columns="is_large_fire"), original.drop(columns="is_large_fire"))
+            self.assertEqual(actual.is_large_fire.tolist(), ["0", "1", "0", "0"])
+            with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as merged:
+                np.testing.assert_array_equal(merged.is_large_fire.sel(time="2020-09-02"), [0, 1, 0, 0])
+                self.assertFalse(merged.is_large_fire.isnull().any())
+                self.assertEqual(merged.is_large_fire.dtype, np.dtype("int8"))
+            summary = json.loads((destination / "merge_summary.json").read_text())
+            self.assertEqual(summary["partitions"]["training"]["missing_targets"], 0)
+            self.assertEqual(processed_fire, (processed / "fire" / "ciffc.csv").read_bytes())
 
     def test_netcdf_rejects_missing_csvs_grid_changes_and_varying_static_values(self):
         with TemporaryDirectory() as directory:

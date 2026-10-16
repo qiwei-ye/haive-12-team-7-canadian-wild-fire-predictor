@@ -148,7 +148,7 @@
       "days": 362,
       "rows": 784816,
       "positive_targets": 286,
-      "missing_targets": 2
+      "missing_targets": 0
     }
   },
   "climate_source": "ORRC",
@@ -959,8 +959,8 @@
         1
       ]
     ],
-    "is_large_fire": "1 if any reported fire in this cell on this report date is >= 1000 ha; missing if no known large fire but a reported size is unknown; otherwise 0 (no reported large fire)",
-    "missing_values": "Empty CSV fields remain unknown; predictors are not imputed",
+    "is_large_fire": "1 if any reported fire in this cell on this report date is >= 1000 ha; otherwise 0, including missing indicators and unknown reported fire sizes",
+    "missing_values": "Missing is_large_fire indicators are replaced with 0; missing predictor values remain unknown and are not imputed",
     "fire_history_coverage": "Available CIFFC reports only; missing historical reporting does not establish absence",
     "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
     "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated"
