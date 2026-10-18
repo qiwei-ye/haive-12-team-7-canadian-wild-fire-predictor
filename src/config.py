@@ -64,7 +64,7 @@ SECONDS_PER_DAY = 86_400
 KELVIN_TO_CELSIUS_OFFSET = 273.15
 METRES_TO_MILLIMETRES = 1_000
 
-# Predictor source paths and field names follow data/raw/README.md.
+# Predictor source paths and field names follow each raw-data folder's README.md.
 TARGET_CRS = "EPSG:4326"
 ECODISTRICTS_PATH = GEOLOGICAL_DATA_DIR / "National Ecological Framework" / "ecodistricts.shp"
 ELEVATION_PATH = ECODISTRICTS_PATH.with_name("dt_elevation.dbf")
@@ -91,18 +91,38 @@ CANSIPS_PRECIPITATION_HOURS = 24
 # Bound memory use without changing the source or target data resolutions.
 PROCESSING_TIME_CHUNK = 32
 
-# CIFFC is the selected fire source; retain IDs and report dates, never status dates.
+# CWFIS supplies fire records; NWT supplies dates for matched January 1 placeholders.
 LARGE_FIRE_THRESHOLD_HA = 1_000
 FIRE_OUTPUT_COLUMNS = (
     "fire_id", "latitude", "longitude", "report_date", "size_ha", "is_large_fire",
 )
 FIRE_SOURCES = {
-    "CIFFC": {
-        "pattern": "CIFFC/ciffc.csv",
-        "header": None,
-        "columns": {0: "fire_id", 8: "latitude", 9: "longitude", 2: "report_date", 7: "size_ha"},
+    "CWFIS": {
+        "pattern": "CWFIS/reported_fires_*.csv",
+        "header": 0,
+        "output_filename": "cwfis.csv",
+        "columns": {
+            "national_fire_id": "fire_id", "latitude": "latitude", "longitude": "longitude",
+            "situation_report_date": "report_date", "fire_size": "size_ha",
+        },
     },
 }
+
+FIRE_DATE_REFERENCE = {
+    "relative_path": "NWT/fire_incidents_2026.json",
+    "year": 2026,
+    "agency": "NT",
+    "id_column": "title",
+    "date_column": "estimatedstart",
+    "discovery_column": "discoverydate",
+    "latitude_column": "latitude",
+    "longitude_column": "longitude",
+    "coordinate_decimal_places": 4,  # Precision of the CWFIS coordinates.
+}
+FIRE_DATE_DEFINITION = (
+    "CWFIS situation report dates, except exact-ID-matched January 1 NWT 2026 "
+    "placeholders use NWT estimated start dates; unmatched January 1 dates remain unchanged"
+)
 
 # Daily historical modelling tables: chronological splitting and eight neighbours.
 HISTORICAL_CLIMATE_SOURCE = "ORRC"

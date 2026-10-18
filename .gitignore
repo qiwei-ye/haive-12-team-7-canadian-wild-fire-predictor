@@ -7,9 +7,15 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 # Keep raw datasets local while retaining documentation and folder structure.
-data/raw/climate/*
+data/raw/climate/**
+!data/raw/climate/**/
+!data/raw/climate/**/README.md
 !data/raw/climate/.gitkeep
-data/raw/fire/*
+data/raw/fire/**
+!data/raw/fire/**/
+!data/raw/fire/**/README.md
 !data/raw/fire/.gitkeep
-data/raw/geological/*
+data/raw/geological/**
+!data/raw/geological/**/
+!data/raw/geological/**/README.md
 !data/raw/geological/.gitkeep

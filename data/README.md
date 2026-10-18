@@ -1,9 +1,32 @@
-Processed predictors are created with:
+Processed predictors and fire reports are created with:
 
 ```powershell
 .venv/Scripts/python.exe run_pipeline.py preprocess
 .venv/Scripts/python.exe run_pipeline.py preprocess --only fire
 ```
+
+Each folder under [processed/](processed/README.md) documents its processing
+logic, output files, variables, coverage, and limitations.
+
+Fire preprocessing consolidates the CWFIS annual CSV snapshots into
+`data/processed/fire/cwfis.csv`, with the six configured output columns. The
+`fire_id` column uses `national_fire_id` to distinguish agencies and years.
+For IDs repeated across snapshots, the earliest snapshot's complete record wins
+before date filtering. Later carryover/reset records cannot create another event
+or change its original report date, location, and area. Dates are taken from
+`situation_report_date`, except that January 1 NWT 2026 placeholders are replaced
+with the official NWT `estimatedstart` calendar date from
+`data/raw/fire/NWT/fire_incidents_2026.json`. Matching uses exact national/agency
+IDs and checks coordinates at CWFIS's published precision. CWFIS locations and
+areas are preserved; status dates are never substituted. Correction occurs before
+the historical window filter, so corrected September 2026 fires are omitted.
+Unknown or negative areas remain blank in the processed source.
+
+Unmatched January 1 records retain their CWFIS dates and trigger console warnings.
+NWT start dates are estimates, and its original report dates are unavailable.
+The six-column `cwfis.csv` schema is retained; its `report_date` column now denotes
+the processed fire date with this documented exception. NWT is a date reference
+for CWFIS records, without adding duplicate fire observations.
 
 To combine the existing processed inputs into daily historical tables, run:
 
@@ -50,31 +73,35 @@ cloning; if these files contain pointers instead of NetCDF data, run
 
 | Columns | Meaning |
 | --- | --- |
-| `date`, `cell`, `lat`, `lon` | Report/calendar date and common grid identifier/centre coordinates. |
+| `date`, `cell`, `lat`, `lon` | Calendar date and common grid identifier/centre coordinates; fire dates follow the correction rule above. |
 | `hurs`, `pr`, `sfcWind`, `tas` | Historical ORRC predictors, retaining the processed units in configuration. |
 | `MIN_ELEV`, `MAX_ELEV`, `MEAN_ELEV`, `ELEVDIFF` | Processed ecodistrict elevation attributes, in metres. |
 | `landcover` | Modal 2020 land-cover category code; categorical, without interpolation. |
 | `previous_fire` | 1 if an available fire report in this cell strictly precedes this date; otherwise 0. Any reported fire counts, regardless of size. |
 | `previous_fire_neighbour` | 1 if an available earlier report is in one of the eight retained side- or corner-sharing cells; otherwise 0. The current cell is excluded. |
-| `is_large_fire` | 1 if at least one reported fire in this cell on this date meets the configured large-fire threshold; otherwise 0, including missing indicators and unknown reported fire sizes. |
+| `is_large_fire` | 1 if at least one reported fire assigned to this cell/date meets the configured large-fire threshold; otherwise 0, including missing indicators and unknown reported fire sizes. |
 
 History carries forward across the training, validation, and testing boundaries;
 same-day and future reports never enter a row's history. Multiple fires in a cell
 on a day produce one target, with a known large fire taking precedence over an
-unknown size. Fire dates are CIFFC report dates, not ignition or status dates.
+unknown size. Fire dates follow `FIRE_DATE_DEFINITION` in configuration, also saved
+in merge metadata and the NetCDF `fire_date_definition` attribute. Corrected dates
+apply to both the target and strictly earlier fire-history predictors.
 Reports on omitted CSV dates still contribute to fire history on later dates.
 Processed climate files retain their complete daily time coordinates, including
 the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 
-CIFFC reporting is incomplete, especially in the earlier historical years. Zero
-targets mean **no reported large fire**, not verified absence. Zero history values
+CWFIS operational reporting can have coverage gaps and source errors. Corrected
+NWT dates follow the agency's estimated start field, including its distinction
+from discovery dates. Unmatched dates remain unresolved. Zero targets mean
+**no reported large fire**, not verified absence. Zero history values
 mean **no earlier fire in the available reports**, not no fire ever. Unknown fire
-sizes remain missing in the processed CIFFC source. Cleaned large-fire indicators
+sizes remain missing in the processed CWFIS source. Cleaned large-fire indicators
 use `0` for missing values. Missing climate/static predictors remain empty CSV
 fields and are not imputed.
 
 Fire locations outside the Canadian boundary or within cells absent from the
 existing centre-filtered grid are excluded and documented in the summary. They
 are never moved to a neighbouring cell. Raw and processed inputs remain unchanged.
-NFDB, fuel type, ecodistrict identifiers, and forecast-only climate sources are
+CIFFC, NFDB, fuel type, ecodistrict identifiers, and forecast-only climate sources are
 excluded from these historical modelling tables.

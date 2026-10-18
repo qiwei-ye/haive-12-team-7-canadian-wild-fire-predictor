@@ -17,8 +17,11 @@ CanSIPS daily intervals include the midnight endpoint and retain every model and
 member; unavailable humidity is not inferred from dewpoint. Forecast coverage is
 limited to the supplied files. Static elevation remains district-level information.
 
-Fire preprocessing writes a six-column CIFFC CSV under data/processed/fire,
-keeping report dates within the configured training/testing period, inclusive.
+Fire preprocessing combines CWFIS snapshots into data/processed/fire/cwfis.csv,
+using national fire IDs and retaining the earliest snapshot for repeated IDs,
+correcting matched January 1 placeholders from NWT estimated start dates before
+filtering to the configured historical period. CWFIS locations and areas are
+preserved; unmatched January 1 dates are retained and reported in console warnings.
 It runs separately with --only fire;
 the default 'all' selection continues to process climate/geological predictors.
 
@@ -26,7 +29,7 @@ Merge writes one all-cell CSV per day under data/clean/{training,validation,test
 It also combines those CSVs in data/clean/merged.nc, with partition(time).
 Use merge --netcdf-only to combine existing CSVs without regenerating them.
 Training/validation dates are split chronologically using the configured fractions.
-Only ORRC climate, elevation, land cover, earlier fire history, and CIFFC targets
+Only ORRC climate, elevation, land cover, earlier fire history, and CWFIS targets
 are included. Missing predictors remain blank; missing target indicators use 0.
 Zero targets mean no reported
 large fire, not verified absence; merge_summary.json documents coverage/exclusions.

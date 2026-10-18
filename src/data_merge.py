@@ -1,4 +1,4 @@
-"""Daily historical predictor/CIFFC tables, with strictly earlier fire history.
+"""Daily historical predictor/fire tables, with strictly earlier fire history.
 
 Zero labels mean no *reported* large fire, not verified absence of fire. Missing
 cleaned indicators use 0; a known large fire in the cell/day still establishes 1.
@@ -22,9 +22,10 @@ LOGGER = logging.getLogger(__name__)
 
 def _clean_target_definitions():
     return {
-        "is_large_fire": f"1 if any reported fire in this cell on this report date is >= {config.LARGE_FIRE_THRESHOLD_HA} ha; "
+        "is_large_fire": f"1 if any reported fire in this cell on this processed fire date is >= {config.LARGE_FIRE_THRESHOLD_HA} ha; "
                          "otherwise 0, including missing indicators and unknown reported fire sizes",
         "missing_values": "Missing is_large_fire indicators are replaced with 0; missing predictor values remain unknown and are not imputed",
+        "fire_date": config.FIRE_DATE_DEFINITION,
     }
 
 
@@ -247,7 +248,9 @@ def merge_csvs_to_netcdf(output_dir=None):
                "excluded_historical_dates": ",".join(config.EXCLUDED_HISTORICAL_DATES),
                "excluded_cell_ids": ",".join(map(str, config.EXCLUDED_CELL_IDS)),
                "target_definition": summary["definitions"]["is_large_fire"],
-               "fire_history_coverage": summary["definitions"]["fire_history_coverage"]},
+               "fire_history_coverage": summary["definitions"]["fire_history_coverage"],
+               "fire_sources": ",".join(summary["fire_sources"]),
+               "fire_date_definition": summary["definitions"]["fire_date"]},
     )
     dataset.time.attrs = {"standard_name": "time", "long_name": "Daily CSV date"}
     dataset.lat.attrs = {"standard_name": "latitude", "units": summary["units"]["lat"]}
@@ -298,7 +301,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
         required.extend(root / "climate" / config.HISTORICAL_CLIMATE_SOURCE / split / f"{variable}.nc"
                         for variable in config.CLIMATE_VARIABLES)
     required.extend(root / "static" / source / "predictors.nc" for source in config.MERGE_STATIC_PREDICTORS)
-    fire_paths = [root / "fire" / Path(settings["pattern"]).name for settings in config.FIRE_SOURCES.values()]
+    fire_paths = [root / "fire" / settings["output_filename"] for settings in config.FIRE_SOURCES.values()]
     required.extend(fire_paths)
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -332,8 +335,9 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
     fires, excluded = assign_fire_cells(records, grid, boundary)
     if len(excluded):
         LOGGER.warning("Excluded %s fire records: %s", len(excluded), excluded.exclusion_reason.value_counts().to_dict())
-    LOGGER.warning("CIFFC reporting is incomplete: zero means no reported large fire, not verified absence. "
-                   "Missing cleaned large-fire indicators use 0; history uses available reports only.")
+    source_names = ", ".join(config.FIRE_SOURCES)
+    LOGGER.warning("%s coverage can be incomplete: zero means no reported large fire, not verified absence. "
+                   "Missing cleaned large-fire indicators use 0; history uses available reports only.", source_names)
     all_dates = partitions["training"].append(partitions["validation"]).append(partitions["test"])
     membership = {day: name for name, dates in partitions.items() for day in dates}
     neighbours = connecting_cells(grid)
@@ -392,7 +396,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
             "previous_fire_neighbour": "1 if any available earlier report is in a retained connecting cell; otherwise 0",
             "neighbour_offsets": config.FIRE_NEIGHBOUR_OFFSETS,
             **_clean_target_definitions(),
-            "fire_history_coverage": "Available CIFFC reports only; missing historical reporting does not establish absence",
+            "fire_history_coverage": f"Available {source_names} reports only; missing historical reporting does not establish absence",
             "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
             "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated",
         },

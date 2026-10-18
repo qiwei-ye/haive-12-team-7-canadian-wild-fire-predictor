@@ -110,7 +110,7 @@ class MergeTests(unittest.TestCase):
             for variable in variables:
                 dataset[variable].attrs["units"] = "1" if variable == "landcover" else "m"
             dataset.to_netcdf(path)
-        path = processed / "fire" / "ciffc.csv"
+        path = processed / "fire" / config.FIRE_SOURCES["CWFIS"]["output_filename"]
         path.parent.mkdir()
         self.records().to_csv(path, index=False)
         boundary = root / "boundary.gpkg"
@@ -143,11 +143,13 @@ class MergeTests(unittest.TestCase):
             summary = json.loads((root / "clean" / "merge_summary.json").read_text())
             self.assertEqual(summary["partitions"]["training"]["rows"], 12)
             self.assertEqual(summary["partitions"]["training"]["missing_targets"], 0)
+            self.assertEqual(summary["definitions"]["fire_date"], config.FIRE_DATE_DEFINITION)
             with xr.open_dataset(root / "clean" / config.CLEAN_MERGED_FILENAME) as merged:
                 self.assertEqual(dict(merged.sizes), {"cell": 4, "time": 6})
                 self.assertEqual(merged.partition.dims, ("time",))
                 self.assertEqual(merged.partition.values.tolist(), ["training"] * 3 + ["validation"] + ["test"] * 2)
                 self.assertEqual(merged.landcover.dims, ("cell",))
+                self.assertEqual(merged.attrs["fire_date_definition"], config.FIRE_DATE_DEFINITION)
                 self.assertEqual(merged.tas.attrs["units"], config.CLIMATE_UNITS["tas"])
                 self.assertEqual(merged.landcover.encoding["dtype"], np.dtype("int16"))
                 self.assertEqual(merged.is_large_fire.encoding["dtype"], np.dtype("int8"))
@@ -232,7 +234,7 @@ class MergeTests(unittest.TestCase):
             frame.loc[2, "is_large_fire"] = ""
             frame.to_csv(path, index=False)
             original = pd.read_csv(path, dtype="string", keep_default_na=False)
-            processed_fire = (processed / "fire" / "ciffc.csv").read_bytes()
+            processed_fire = (processed / "fire" / config.FIRE_SOURCES["CWFIS"]["output_filename"]).read_bytes()
             with patch.object(config, "TIME_WINDOWS", windows):
                 data_merge.merge_csvs_to_netcdf(destination)
             actual = pd.read_csv(path, dtype="string", keep_default_na=False)
@@ -244,7 +246,7 @@ class MergeTests(unittest.TestCase):
                 self.assertEqual(merged.is_large_fire.dtype, np.dtype("int8"))
             summary = json.loads((destination / "merge_summary.json").read_text())
             self.assertEqual(summary["partitions"]["training"]["missing_targets"], 0)
-            self.assertEqual(processed_fire, (processed / "fire" / "ciffc.csv").read_bytes())
+            self.assertEqual(processed_fire, (processed / "fire" / config.FIRE_SOURCES["CWFIS"]["output_filename"]).read_bytes())
 
     def test_netcdf_rejects_missing_csvs_grid_changes_and_varying_static_values(self):
         with TemporaryDirectory() as directory:
