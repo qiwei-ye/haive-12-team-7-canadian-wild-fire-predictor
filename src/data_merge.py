@@ -24,7 +24,7 @@ def _clean_target_definitions():
     return {
         "is_large_fire": f"1 if any reported fire in this cell on this processed fire date is >= {config.LARGE_FIRE_THRESHOLD_HA} ha; "
                          "otherwise 0, including missing indicators and unknown reported fire sizes",
-        "missing_values": "Missing is_large_fire indicators are replaced with 0; missing predictor values remain unknown and are not imputed",
+        "missing_values": "Missing is_large_fire indicators are replaced with 0; historical tas uses the configured centered mean fill before weather features; other missing predictor values remain unknown",
         "fire_date": config.FIRE_DATE_DEFINITION,
     }
 
@@ -32,6 +32,7 @@ def _clean_target_definitions():
 def feature_definitions():
     window = f"[{config.FIRE_HISTORY_YEARS} calendar years before the row date, row date)"
     result = {
+        "tas": config.TAS_FILL_DEFINITION,
         "previous_large_fire": f"1 if a known large fire occurred in this cell in {window}; otherwise 0",
         "previous_large_fire_neighbour": f"1 if a known large fire occurred in a retained surrounding cell in {window}; otherwise 0",
         "previous_small_fire_neighbour": f"1 if a known non-large fire occurred in a retained surrounding cell in {window}; otherwise 0; unknown sizes do not count",
@@ -291,7 +292,8 @@ def merge_csvs_to_netcdf(output_dir=None):
                "target_definition": summary["definitions"]["is_large_fire"],
                "fire_history_coverage": summary["definitions"]["fire_history_coverage"],
                "fire_sources": ",".join(summary["fire_sources"]),
-               "fire_date_definition": summary["definitions"]["fire_date"]},
+               "fire_date_definition": summary["definitions"]["fire_date"],
+               "tas_fill_definition": config.TAS_FILL_DEFINITION},
     )
     dataset.time.attrs = {"standard_name": "time", "long_name": "Daily CSV date"}
     dataset.lat.attrs = {"standard_name": "latitude", "units": summary["units"]["lat"]}

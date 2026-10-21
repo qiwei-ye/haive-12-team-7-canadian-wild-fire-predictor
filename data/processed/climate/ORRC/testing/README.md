@@ -14,6 +14,9 @@ dates, and EPSG:4326 1° latitude x 1° longitude centre coordinates.
 | `sfcWind.nc` | `sfcWind` | Near-surface wind speed. | m s-1 |
 | `tas.nc` | `tas` | Near-surface air temperature. | degC |
 
-Missing values remain NaN. The daily coordinate includes 2026-03-17, 2026-04-13,
-and 2026-04-14, which are excluded from the later clean tables: `hurs`, `sfcWind`,
-and `tas` are missing for every cell on these dates, while `pr` remains available.
+The daily coordinate includes 2026-03-17, 2026-04-13, and 2026-04-14. Missing `tas`
+on these dates is filled with the same-cell mean of original available values over
+`[t-3, t+3]`. Consecutive gaps are filled simultaneously using original
+observations. These dates remain excluded from clean tables because `hurs` and
+`sfcWind` are still missing for every cell. `pr` remains available. Other missing
+values remain NaN, including any temperature window with no observations.

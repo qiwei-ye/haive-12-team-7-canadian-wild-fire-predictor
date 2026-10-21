@@ -15,7 +15,9 @@ dates, and EPSG:4326 1° latitude x 1° longitude centre coordinates.
 | `sfcWind.nc` | `sfcWind` | Near-surface wind speed. | m s-1 |
 | `tas.nc` | `tas` | Near-surface air temperature. | degC |
 
-Missing values remain NaN. The daily coordinate includes 2025-05-26, which is
-excluded from the later clean tables: `hurs`, `sfcWind`, and `tas` are missing for
-every cell on that date, while `pr` remains available. The clean merge applies the
+The daily coordinate includes 2025-05-26. Missing `tas` on this date is filled with
+the same-cell mean of original available temperatures over `[t-3, t+3]`; observed
+values are preserved. The date remains excluded from clean tables because `hurs`
+and `sfcWind` are still missing for every cell. `pr` remains available. Other
+missing values remain NaN. The clean merge applies the
 configured chronological 80/20 split.

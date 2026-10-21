@@ -163,6 +163,66 @@ class ClimateTests(GridFixture):
                     np.testing.assert_allclose(actual.tas, 10, atol=1e-4)
             self.assertEqual(original, source.read_bytes())
 
+    def test_centered_tas_fill_uses_original_same_cell_values_and_preserves_observations(self):
+        values = np.column_stack([np.arange(10, dtype=float), np.full(10, np.nan)])
+        values[[3, 4], 0] = np.nan
+        array = xr.DataArray(values, dims=("time", "cell"),
+                             coords={"time": pd.date_range("2025-01-01", periods=10), "cell": [1, 2]},
+                             attrs={"units": config.CLIMATE_UNITS["tas"]}, name="tas")
+        original = array.copy(deep=True)
+        result = data_climate.fill_missing_tas(array)
+        self.assertAlmostEqual(float(result[3, 0]), np.mean([0, 1, 2, 5, 6]))
+        self.assertAlmostEqual(float(result[4, 0]), np.mean([1, 2, 5, 6, 7]))
+        observed = np.isfinite(original.values)
+        np.testing.assert_array_equal(result.values[observed], original.values[observed])
+        self.assertTrue(result.isel(cell=1).isnull().all())
+        self.assertEqual(result.attrs["missing_value_fill"], config.TAS_FILL_DEFINITION)
+        xr.testing.assert_equal(array, original)
+
+    def test_tas_fill_keeps_empty_windows_missing_and_does_not_cascade(self):
+        values = np.full(20, np.nan, dtype=np.float32)
+        values[[0, -1]] = [0, 19]
+        array = xr.DataArray(values, dims="time", coords={"time": pd.date_range("2025-01-01", periods=20)})
+        result = data_climate.fill_missing_tas(array)
+        np.testing.assert_array_equal(result.values[:4], [0, 0, 0, 0])
+        np.testing.assert_array_equal(result.values[-4:], [19, 19, 19, 19])
+        self.assertTrue(np.isnan(result.values[4:16]).all())
+        self.assertEqual(result.dtype, np.dtype("float32"))
+
+    def test_tas_fill_uses_calendar_days_and_rejects_duplicate_dates(self):
+        array = xr.DataArray([0.0, np.nan, 6.0], dims="time",
+                             coords={"time": pd.to_datetime(["2025-01-01", "2025-01-04", "2025-01-07"])})
+        result = data_climate.fill_missing_tas(array)
+        self.assertEqual(result.sizes["time"], 7)
+        self.assertEqual(float(result.sel(time="2025-01-04")), 3)
+        duplicate = array.assign_coords(time=pd.to_datetime(["2025-01-01"] * 3))
+        with self.assertRaisesRegex(ValueError, "unique daily"):
+            data_climate.fill_missing_tas(duplicate)
+        with patch.object(config, "TAS_FILL_WINDOW_DAYS", 4), self.assertRaisesRegex(ValueError, "positive odd"):
+            data_climate.fill_missing_tas(array)
+
+    def test_tas_preprocessing_fills_across_splits_and_selective_rebuilds_agree(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "raw" / "ORRC v1.0_tas" / "tas_day_NAM_Ouranos_ORRC_v10_fixture.nc"
+            source.parent.mkdir(parents=True)
+            values = np.broadcast_to(np.array([10, 20, 30, np.nan, 50, 60, 70])[:, None, None], (7, 2, 2)).copy()
+            dataset = xr.Dataset({"tas": (("time", "lat", "lon"), values + config.KELVIN_TO_CELSIUS_OFFSET)},
+                                 coords={"time": pd.date_range("2025-08-28", periods=7),
+                                         "lat": [50.5, 51.5], "lon": [260.5, 261.5]})
+            dataset.tas.attrs["units"] = "K"
+            dataset.to_netcdf(source)
+            original = source.read_bytes()
+            with patch.object(config, "CLIMATE_DATA_DIR", root / "raw"), patch.object(config, "CLIMATE_VARIABLES", ("tas",)), self.assertLogs(level="WARNING"):
+                full = data_climate.process_netcdf_source("ORRC", self.grid, self.boundary, root / "full")
+                partial = data_climate.process_netcdf_source("ORRC", self.grid, self.boundary, root / "partial", splits=("training_validation",))
+            self.assertEqual(len(full), 2)
+            self.assertEqual(len(partial), 1)
+            with xr.open_dataset(full[0]) as complete, xr.open_dataset(partial[0]) as selected:
+                np.testing.assert_allclose(complete.tas.sel(time="2025-08-31"), 40, atol=1e-4)
+                xr.testing.assert_equal(complete, selected)
+            self.assertEqual(source.read_bytes(), original)
+
     def record(self, parameter, step, value, member=0, model=4, reference=None):
         return {"parameter": parameter, "step": pd.Timedelta(hours=step), "values": np.full(4, value),
                 "member": member, "model": model, "reference": pd.Timestamp(reference or config.FORECAST_START_DATE),

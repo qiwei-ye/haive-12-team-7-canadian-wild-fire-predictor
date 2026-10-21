@@ -149,3 +149,11 @@ ROLLING_WEATHER_FEATURES = {
     "30_day_pr": {"variable": "pr", "days": 30, "aggregation": "sum", "units": "mm"},
     "7_day_min_avg_tas": {"variable": "tas", "days": 7, "aggregation": "min", "units": CLIMATE_UNITS["tas"]},
 }
+TAS_FILL_WINDOW_DAYS = 7
+TAS_FILL_DEFINITION = (
+    f"Missing historical daily tas uses the same-cell mean of originally available "
+    f"observations in [t-{TAS_FILL_WINDOW_DAYS // 2}, t+{TAS_FILL_WINDOW_DAYS // 2}] "
+    "calendar days; observed values are unchanged; no iterative filling; windows "
+    "without observations remain missing. The centered window uses future days "
+    "and can cross temporal partition boundaries."
+)

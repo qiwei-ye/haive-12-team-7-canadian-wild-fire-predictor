@@ -12,7 +12,8 @@ The default boundary comes from the local ecodistrict polygons; --boundary can
 select another local Canadian polygon file. No inputs are downloaded.
 
 Only cell centres inside Canada are retained. Climate means use valid Canadian
-source centres; categorical rasters use mode. Missing dates/values remain NaN.
+source centres; categorical rasters use mode. Historical tas gaps use original
+same-cell observations over [t-3, t+3]; other unavailable values remain NaN.
 CanSIPS daily intervals include the midnight endpoint and retain every model and
 member; unavailable humidity is not inferred from dewpoint. Forecast coverage is
 limited to the supplied files. Static elevation remains district-level information.

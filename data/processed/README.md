@@ -12,7 +12,9 @@ grid contains 2,168 cells. This boundary comes from the local ecological dataset
 
 Continuous climate values use means of valid Canadian source centres per cell.
 Categorical rasters use mode; elevation uses polygon overlap weights. Missing
-values remain missing. Climate outputs are daily and separated by configured
+values remain missing except historical `tas`, whose missing values use available
+same-cell observations over `[t-3, t+3]` in a single centered mean fill. Climate
+outputs are daily and separated by configured
 time windows; static predictors have no time dimension. Fire data retain event
 dates and point locations, with grid assignment performed during the clean merge.
 Fire processing begins on 2018-09-01; historical climate processing begins on

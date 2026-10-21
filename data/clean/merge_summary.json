@@ -5770,6 +5770,7 @@
     "7_day_min_avg_tas": "degC"
   },
   "definitions": {
+    "tas": "Missing historical daily tas uses the same-cell mean of originally available observations in [t-3, t+3] calendar days; observed values are unchanged; no iterative filling; windows without observations remain missing. The centered window uses future days and can cross temporal partition boundaries.",
     "previous_large_fire": "1 if a known large fire occurred in this cell in [2 calendar years before the row date, row date); otherwise 0",
     "previous_large_fire_neighbour": "1 if a known large fire occurred in a retained surrounding cell in [2 calendar years before the row date, row date); otherwise 0",
     "previous_small_fire_neighbour": "1 if a known non-large fire occurred in a retained surrounding cell in [2 calendar years before the row date, row date); otherwise 0; unknown sizes do not count",
@@ -5810,7 +5811,7 @@
       ]
     ],
     "is_large_fire": "1 if any reported fire in this cell on this processed fire date is >= 1000 ha; otherwise 0, including missing indicators and unknown reported fire sizes",
-    "missing_values": "Missing is_large_fire indicators are replaced with 0; missing predictor values remain unknown and are not imputed",
+    "missing_values": "Missing is_large_fire indicators are replaced with 0; historical tas uses the configured centered mean fill before weather features; other missing predictor values remain unknown",
     "fire_date": "CWFIS situation report dates, except exact-ID-matched January 1 NWT 2026 placeholders use NWT estimated start dates; unmatched January 1 dates remain unchanged",
     "fire_history_coverage": "Available CWFIS reports from 2018-09-01; missing historical reporting does not establish absence",
     "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",

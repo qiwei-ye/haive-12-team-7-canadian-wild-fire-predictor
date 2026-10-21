@@ -16,7 +16,12 @@ dimensions `(time, cell)` and the common 2,168-cell EPSG:4326 1° grid.
 | [training_validation/](training_validation/README.md) | 2020-09-01 to 2025-08-31 | 1,826 |
 
 Observations outside these windows are discarded. Training and validation remain
-combined here; the clean merge divides them chronologically. Missing values are
-preserved, including the four dates excluded later from clean tables.
+combined here; the clean merge divides them chronologically. Missing historical
+daily `tas` uses the mean of originally available same-cell observations over
+`[t-3, t+3]`, inclusive, before saving the splits. Observed temperatures are
+preserved; replacements are simultaneous and never reused to fill another gap.
+Windows with no available observations remain missing. The centered fill uses
+future days and can cross temporal partitions. Other missing values are retained,
+including humidity and wind on the four dates excluded later from clean tables.
 The history folder supplies August observations for the 30-day precipitation and
 7-day minimum-temperature features; clean modelling dates begin on 2020-09-01.

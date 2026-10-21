@@ -135,6 +135,23 @@ def regrid_netcdf(array, grid, boundary):
     return result
 
 
+def fill_missing_tas(array):
+    """Fill from original same-cell observations in a centered calendar window."""
+    window = config.TAS_FILL_WINDOW_DAYS
+    if window <= 0 or window % 2 != 1:
+        raise ValueError("The centered tas fill window must be a positive odd number of days")
+    array = array.sortby("time")
+    times = pd.DatetimeIndex(array.time.values)
+    if times.empty or times.has_duplicates or not times.equals(times.normalize()):
+        raise ValueError("The tas fill requires nonempty, unique daily calendar dates")
+    daily = array.reindex(time=pd.date_range(times[0], times[-1], freq=config.TARGET_FREQUENCY))
+    means = daily.astype("float64").rolling(time=window, center=True, min_periods=1).mean()
+    # Compute all replacements from the original array, never from new fills.
+    result = daily.fillna(means).astype(array.dtype)
+    result.attrs = {**array.attrs, "missing_value_fill": config.TAS_FILL_DEFINITION}
+    return result
+
+
 def process_netcdf_source(source, grid, boundary, output_dir=None, splits=None):
     output_dir = Path(output_dir) if output_dir is not None else config.PROCESSED_DATA_DIR
     outputs = []
@@ -144,6 +161,15 @@ def process_netcdf_source(source, grid, boundary, output_dir=None, splits=None):
     windows = [config.TIME_WINDOWS[name] for name in splits]
     first, last = min(window[0] for window in windows), max(window[1] for window in windows)
     for variable in config.CLIMATE_VARIABLES:
+        read_first, read_last = first, last
+        if source == config.HISTORICAL_CLIMATE_SOURCE and variable == "tas":
+            # A selectively rebuilt split needs observations on both sides too.
+            available = [config.TIME_WINDOWS[name] for name in source_splits(source)]
+            half_window = pd.Timedelta(days=config.TAS_FILL_WINDOW_DAYS // 2)
+            read_first = max(min(window[0] for window in available),
+                             (pd.Timestamp(first) - half_window).date().isoformat())
+            read_last = min(max(window[1] for window in available),
+                            (pd.Timestamp(last) + half_window).date().isoformat())
         pattern = config.NETCDF_SOURCE_PATTERNS[source].format(variable=variable)
         paths = sorted(config.CLIMATE_DATA_DIR.glob(pattern))
         if not paths:
@@ -160,14 +186,19 @@ def process_netcdf_source(source, grid, boundary, output_dir=None, splits=None):
                 field = dataset[variable]
                 # Some CF files expose 2-D latitude/longitude as data variables.
                 field = field.assign_coords(lat=dataset.lat, lon=dataset.lon)
-                field = field.sel(time=slice(first, last))
+                field = field.sel(time=slice(read_first, read_last))
                 if field.sizes["time"]:
                     pieces.append(regrid_netcdf(convert_units(field, variable), grid, boundary))
             if not pieces:
                 LOGGER.warning("No %s %s observations in configured windows", source, variable)
                 continue
             combined = xr.concat(pieces, dim="time", coords="minimal", compat="equals")
-            for split, daily in daily_partitions(combined, source):
+            daily_fields = dict(daily_partitions(combined, source))
+            if source == config.HISTORICAL_CLIMATE_SOURCE and variable == "tas" and daily_fields:
+                timeline = xr.concat(list(daily_fields.values()), dim="time", join="exact")
+                filled = fill_missing_tas(timeline)
+                daily_fields = {split: filled.sel(time=field.time) for split, field in daily_fields.items()}
+            for split, daily in daily_fields.items():
                 if split not in splits:
                     continue
                 daily.attrs["source_cell_methods"] = daily.attrs.get("cell_methods", "")

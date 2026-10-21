@@ -2,8 +2,8 @@
 
 **Processing:** `src/data_climate.py` normalizes coordinates and longitudes,
 averages valid Canadian source centres within each common grid cell, converts
-units, and aggregates to daily values. Missing values and cells without source
-support remain NaN. Source definitions and windows come from
+units, and aggregates to daily values. Missing values remain NaN except for the
+historical `tas` fill described below. Source definitions and windows come from
 [configuration](../../../src/config.py) and the raw source READMEs.
 
 **Data:** All files share the [common 2,168-cell grid](../README.md). ORRC and
@@ -28,7 +28,9 @@ also retains separate model and ensemble-member dimensions.
 | `uas`, `vas` | Eastward and northward wind components; CanSIPSv3 only. | m s-1 |
 
 Historical and forecast sources remain separate. No random training/validation
-split or missing-value imputation is performed here. Processed time coordinates
-retain dates excluded later from clean tables.
+split is performed here. Processed time coordinates
+retain dates excluded later from clean tables. Historical ORRC `tas` uses a
+same-cell centered `[t-3, t+3]` mean to fill missing values before saving splits.
+Other missing climate values remain NaN; observed temperatures are unchanged.
 The August history supplies complete lookback windows for the first clean dates;
 it does not add modelling rows or change partition boundaries.

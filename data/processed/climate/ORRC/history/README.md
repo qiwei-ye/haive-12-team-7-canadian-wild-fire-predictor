@@ -7,7 +7,8 @@ features before the first clean training date; no modelling rows are created her
 
 **Data:** Each NetCDF has dimensions `(time: 31, cell: 2168)` on the common
 EPSG:4326 1 degree latitude x 1 degree longitude grid, with `lat(cell)` and
-`lon(cell)` coordinates. Missing source observations remain NaN.
+`lon(cell)` coordinates. Missing historical `tas` uses the centered mean rule in
+the parent README; other missing source observations remain NaN.
 
 | File | Variable | Definition | Unit |
 | --- | --- | --- | --- |

@@ -79,7 +79,7 @@ cloning; if these files contain pointers instead of NetCDF data, run
 | Columns | Meaning |
 | --- | --- |
 | `date`, `cell`, `lat`, `lon` | Calendar date and common grid identifier/centre coordinates; fire dates follow the correction rule above. |
-| `hurs`, `pr`, `sfcWind`, `tas` | Historical ORRC predictors, retaining the processed units in configuration. |
+| `hurs`, `pr`, `sfcWind`, `tas` | Historical ORRC predictors, retaining the processed units in configuration. Missing daily `tas` uses the centered mean rule below. |
 | `MIN_ELEV`, `MAX_ELEV`, `MEAN_ELEV`, `ELEVDIFF` | Processed ecodistrict elevation attributes, in metres. |
 | `landcover` | Modal 2020 land-cover category code; categorical, without interpolation. |
 | `previous_large_fire` | 1 if a known fire >= 1,000 ha occurred in this cell in the preceding two calendar years; otherwise 0. |
@@ -101,11 +101,15 @@ Reports on omitted CSV dates still contribute to fire history on later dates.
 Weather windows are calculated on consecutive daily climate observations before
 partitioning or omitting clean dates, so they cross split boundaries correctly.
 A rolling weather value is missing if any required daily observation is missing;
-partial sums/minima and imputation are not used. This can create missing derived
-temperature values on retained dates following an excluded source date.
-Currently `7_day_min_avg_tas` is missing for all 2,168 cells on 2025-05-27 to
-2025-06-01, 2026-03-18 to 2026-03-23, and 2026-04-15 to 2026-04-20: 18 dates
-and 39,024 rows. All other cleaned columns are complete.
+partial sums/minima are not used. Before these calculations, missing historical
+daily `tas` is filled with the same-cell mean of originally available observations
+in `[t-3, t+3]`, inclusive. Existing temperatures are preserved. All replacements
+are calculated in one pass; an entirely unavailable window stays missing.
+This centered fill uses future observations and can cross partition boundaries;
+those observations must be available when constructing the features.
+The four configured excluded dates remain omitted because humidity and wind are
+still unavailable. Their filled temperatures contribute to later seven-day minima.
+All current cleaned CSV and merged NetCDF columns are complete after this fill.
 Processed climate files retain their complete daily time coordinates, including
 the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 
@@ -116,7 +120,7 @@ from discovery dates. Unmatched dates remain unresolved. Zero targets mean
 mean **no qualifying fire in the available two-year history**, not no fire ever. Unknown fire
 sizes remain missing in the processed CWFIS source. Cleaned large-fire indicators
 use `0` for missing values. Missing climate/static predictors remain empty CSV
-fields and are not imputed.
+fields; the centered historical `tas` fill is the sole predictor-imputation rule.
 
 Fire locations outside the Canadian boundary or within cells absent from the
 existing centre-filtered grid are excluded and documented in the summary. They
