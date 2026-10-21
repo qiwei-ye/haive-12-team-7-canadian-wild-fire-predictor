@@ -29,6 +29,19 @@ def _clean_target_definitions():
     }
 
 
+def feature_definitions():
+    window = f"[{config.FIRE_HISTORY_YEARS} calendar years before the row date, row date)"
+    result = {
+        "previous_large_fire": f"1 if a known large fire occurred in this cell in {window}; otherwise 0",
+        "previous_large_fire_neighbour": f"1 if a known large fire occurred in a retained surrounding cell in {window}; otherwise 0",
+        "previous_small_fire_neighbour": f"1 if a known non-large fire occurred in a retained surrounding cell in {window}; otherwise 0; unknown sizes do not count",
+    }
+    for name, settings in config.ROLLING_WEATHER_FEATURES.items():
+        result[name] = (f"{settings['aggregation']} of {settings['variable']} over {settings['days']} consecutive calendar days "
+                        "ending on and including the row date; missing if any required observation is unavailable")
+    return result
+
+
 def partition_dates():
     """Reserve testing; split the earlier window by whole dates, without shuffle."""
     if not (0 < config.TRAIN_FRACTION < 1 and 0 < config.VALIDATION_FRACTION < 1
@@ -87,10 +100,10 @@ def assign_fire_cells(records, grid, boundary):
     positions = np.full(len(records), -1, dtype=int)
     positions[valid] = grid.cell.to_index().get_indexer(cell_ids(latitude[valid], longitude[valid]))
     reasons = np.select(
-        [dates.isna(), ~dates.between(config.TIME_WINDOWS["training_validation"][0],
+        [dates.isna(), ~dates.between(config.FIRE_START_DATE,
                                      config.TIME_WINDOWS["testing"][1]),
          ~valid, ~inside, positions < 0],
-        ["invalid_report_date", "outside_historical_window", "missing_or_invalid_coordinates",
+        ["invalid_report_date", "outside_fire_processing_window", "missing_or_invalid_coordinates",
          "outside_canadian_boundary", "containing_cell_not_in_retained_grid"],
         default="",
     )
@@ -104,25 +117,52 @@ def assign_fire_cells(records, grid, boundary):
 
 
 def daily_fire_fields(records, dates, neighbours):
-    """Use earlier reports, including reports on dates without an output CSV."""
+    """Use known-size reports in the preceding calendar years, excluding today."""
     count = len(neighbours)
-    first_report = np.full(count, np.datetime64("NaT"), dtype="datetime64[ns]")
-    first = records.groupby("_cell_index").report_date.min()
-    first_report[first.index.to_numpy(dtype=int)] = first.to_numpy(dtype="datetime64[ns]")
+    dates = pd.DatetimeIndex(dates)
+    if dates.has_duplicates or not dates.is_monotonic_increasing:
+        raise ValueError("Fire history dates must be unique and increasing")
+    history = records.loc[records.is_large_fire.notna()].sort_values("report_date", kind="stable")
+    event_dates = history.report_date.to_numpy(dtype="datetime64[ns]")
+    cells = history._cell_index.to_numpy(dtype=int)
+    large = history.is_large_fire.to_numpy(dtype=np.int8)
+    large_counts = np.zeros(count, dtype=np.int64)
+    small_counts = np.zeros_like(large_counts)
+    left = right = 0
     reports = dict(tuple(records.groupby("report_date", sort=True)))
     for day in dates:
-        seen = first_report < day.to_datetime64()
-        connected = (seen[np.maximum(neighbours, 0)] & (neighbours >= 0)).any(axis=1)
+        end = int(np.searchsorted(event_dates, day.to_datetime64(), side="left"))
+        start = int(np.searchsorted(event_dates, (day - pd.DateOffset(years=config.FIRE_HISTORY_YEARS)).to_datetime64(), side="left"))
+        np.add.at(large_counts, cells[right:end], large[right:end])
+        np.add.at(small_counts, cells[right:end], 1 - large[right:end])
+        np.add.at(large_counts, cells[left:start], -large[left:start])
+        np.add.at(small_counts, cells[left:start], -(1 - large[left:start]))
+        left, right = start, end
+        seen_large, seen_small = large_counts > 0, small_counts > 0
+        connected_large = (seen_large[np.maximum(neighbours, 0)] & (neighbours >= 0)).any(axis=1)
+        connected_small = (seen_small[np.maximum(neighbours, 0)] & (neighbours >= 0)).any(axis=1)
         target = np.zeros(count, dtype=np.float32)
         today = reports.get(day)
         if today is not None:
-            large = today.loc[today.is_large_fire.eq(1), "_cell_index"].to_numpy(dtype=int)
-            target[large] = 1
+            large_today = today.loc[today.is_large_fire.eq(1), "_cell_index"].to_numpy(dtype=int)
+            target[large_today] = 1
         yield day, {
-            "previous_fire": seen.astype(np.int8),
-            "previous_fire_neighbour": connected.astype(np.int8),
+            "previous_large_fire": seen_large.astype(np.int8),
+            "previous_large_fire_neighbour": connected_large.astype(np.int8),
+            "previous_small_fire_neighbour": connected_small.astype(np.int8),
             "is_large_fire": target,
         }
+
+
+def rolling_weather_features(climate):
+    """Calculate complete daily windows before output-date exclusions or splitting."""
+    fields = {}
+    for name, settings in config.ROLLING_WEATHER_FEATURES.items():
+        rolling = climate[settings["variable"]].astype("float64").rolling(
+            time=settings["days"], min_periods=settings["days"])
+        fields[name] = getattr(rolling, settings["aggregation"])()
+        fields[name].attrs = {"units": settings["units"], "description": feature_definitions()[name]}
+    return xr.Dataset(fields)
 
 
 def load_predictors(root, grid, split):
@@ -178,9 +218,10 @@ def merge_csvs_to_netcdf(output_dir=None):
         raise ValueError(f"Unexpected CSV dates outside configured partitions: {sorted(map(str, extra))[:5]}")
     columns = summary["columns"]
     static_names = [name for names in config.MERGE_STATIC_PREDICTORS.values() for name in names]
-    binary_names = ("previous_fire", "previous_fire_neighbour", "is_large_fire")
+    binary_names = (*config.FIRE_HISTORY_VARIABLES, "is_large_fire")
     dynamic_names = [name for name in columns if name not in ("date", "cell", "lat", "lon", *static_names)]
-    if set(columns) != {"date", "cell", "lat", "lon", *static_names, *config.CLIMATE_VARIABLES, *binary_names}:
+    if set(columns) != {"date", "cell", "lat", "lon", *static_names, *config.CLIMATE_VARIABLES,
+                        *config.ROLLING_WEATHER_FEATURES, *binary_names}:
         raise ValueError("Clean CSV metadata does not match the configured predictor schema")
     target_counts = {name: {"positive_targets": 0, "missing_targets": 0} for name in partitions}
     for index, (day, partition, path) in enumerate(entries):
@@ -297,7 +338,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
         raise ValueError("Forecast-only climate sources cannot be merged as historical predictors")
     partitions = partition_dates()
     required = [root / "grid.nc"]
-    for split in ("training_validation", "testing"):
+    for split in ("history", "training_validation", "testing"):
         required.extend(root / "climate" / config.HISTORICAL_CLIMATE_SOURCE / split / f"{variable}.nc"
                         for variable in config.CLIMATE_VARIABLES)
     required.extend(root / "static" / source / "predictors.nc" for source in config.MERGE_STATIC_PREDICTORS)
@@ -328,8 +369,15 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
                 else:
                     base[variable] = values
                 units[variable] = dataset[variable].attrs.get("units", "unspecified")
-    climate = {split: load_predictors(root, grid, split) for split in ("training_validation", "testing")}
+    climate_parts = [load_predictors(root, grid, split) for split in ("history", "training_validation", "testing")]
+    climate = xr.concat(climate_parts, dim="time", join="exact").sortby("time")
+    if climate.indexes["time"].has_duplicates:
+        raise ValueError("Historical predictor windows overlap")
+    climate = climate.reindex(time=pd.date_range(config.TIME_WINDOWS["history"][0],
+                                                config.TIME_WINDOWS["testing"][1], freq=config.TARGET_FREQUENCY))
+    weather = rolling_weather_features(climate)
     units.update({name: config.CLIMATE_UNITS[name] for name in config.CLIMATE_VARIABLES})
+    units.update({name: settings["units"] for name, settings in config.ROLLING_WEATHER_FEATURES.items()})
     records = pd.concat([pd.read_csv(path, dtype={"fire_id": "string"}, keep_default_na=False)
                          for path in fire_paths], ignore_index=True)
     fires, excluded = assign_fire_cells(records, grid, boundary)
@@ -350,11 +398,12 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
     counts = {name: {"positive_targets": 0, "missing_targets": 0} for name in partitions}
     for day, fire_fields in daily_fire_fields(fires, all_dates, neighbours):
         partition = membership[day]
-        split = "testing" if partition == "test" else "training_validation"
         daily = base.copy()
         daily.insert(0, "date", day.date().isoformat())
         for variable in config.CLIMATE_VARIABLES:
-            daily[variable] = climate[split][variable].sel(time=day).values
+            daily[variable] = climate[variable].sel(time=day).values
+        for name in config.ROLLING_WEATHER_FEATURES:
+            daily[name] = weather[name].sel(time=day).values
         for name, values in fire_fields.items():
             daily[name] = pd.array(values, dtype="Int8")
         counts[partition]["positive_targets"] += int(daily.is_large_fire.eq(1).sum())
@@ -392,11 +441,10 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
         "columns": list(daily.columns),
         "units": units,
         "definitions": {
-            "previous_fire": "1 if any available fire report in this cell strictly precedes the row date; otherwise 0",
-            "previous_fire_neighbour": "1 if any available earlier report is in a retained connecting cell; otherwise 0",
+            **feature_definitions(),
             "neighbour_offsets": config.FIRE_NEIGHBOUR_OFFSETS,
             **_clean_target_definitions(),
-            "fire_history_coverage": f"Available {source_names} reports only; missing historical reporting does not establish absence",
+            "fire_history_coverage": f"Available {source_names} reports from {config.FIRE_START_DATE}; missing historical reporting does not establish absence",
             "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
             "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated",
         },

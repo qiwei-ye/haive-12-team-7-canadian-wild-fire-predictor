@@ -15,6 +15,9 @@ Categorical rasters use mode; elevation uses polygon overlap weights. Missing
 values remain missing. Climate outputs are daily and separated by configured
 time windows; static predictors have no time dimension. Fire data retain event
 dates and point locations, with grid assignment performed during the clean merge.
+Fire processing begins on 2018-09-01; historical climate processing begins on
+2020-08-01. August climate observations are stored as lookback history, while
+clean modelling dates still begin on 2020-09-01.
 
 | File/folder | Description |
 | --- | --- |

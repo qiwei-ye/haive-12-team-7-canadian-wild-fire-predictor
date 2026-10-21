@@ -14,6 +14,7 @@ also retains separate model and ensemble-member dimensions.
 | --- | --- | --- | --- |
 | [CanESM5](CanESM5/README.md) | `forecasting/` | 2026-09-01 to 2027-08-31 | 365 |
 | [CanSIPSv3](CanSIPSv3/README.md) | `forecasting/` | 2026-09-01 to 2027-02-28 | 181 |
+| [ORRC](ORRC/README.md) | `history/` | 2020-08-01 to 2020-08-31 | 31 |
 | [ORRC](ORRC/README.md) | `training_validation/` | 2020-09-01 to 2025-08-31 | 1,826 |
 | [ORRC](ORRC/README.md) | `testing/` | 2025-09-01 to 2026-08-31 | 365 |
 
@@ -29,3 +30,5 @@ also retains separate model and ensemble-member dimensions.
 Historical and forecast sources remain separate. No random training/validation
 split or missing-value imputation is performed here. Processed time coordinates
 retain dates excluded later from clean tables.
+The August history supplies complete lookback windows for the first clean dates;
+it does not add modelling rows or change partition boundaries.

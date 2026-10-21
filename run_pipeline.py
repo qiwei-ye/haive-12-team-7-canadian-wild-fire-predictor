@@ -29,6 +29,11 @@ Merge writes one all-cell CSV per day under data/clean/{training,validation,test
 It also combines those CSVs in data/clean/merged.nc, with partition(time).
 Use merge --netcdf-only to combine existing CSVs without regenerating them.
 Training/validation dates are split chronologically using the configured fractions.
+Fire processing begins in September 2018; August 2020 climate is stored as history
+before the clean modelling window. Fire-history features use the previous two
+calendar years, excluding today, with separate large/small neighbour indicators.
+Weather features are inclusive 30-day precipitation sums and 7-day minima of daily
+average temperature; incomplete windows remain missing across split boundaries.
 Only ORRC climate, elevation, land cover, earlier fire history, and CWFIS targets
 are included. Missing predictors remain blank; missing target indicators use 0.
 Zero targets mean no reported

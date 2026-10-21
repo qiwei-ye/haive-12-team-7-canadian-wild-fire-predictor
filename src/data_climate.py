@@ -135,10 +135,13 @@ def regrid_netcdf(array, grid, boundary):
     return result
 
 
-def process_netcdf_source(source, grid, boundary, output_dir=None):
+def process_netcdf_source(source, grid, boundary, output_dir=None, splits=None):
     output_dir = Path(output_dir) if output_dir is not None else config.PROCESSED_DATA_DIR
     outputs = []
-    windows = [config.TIME_WINDOWS[name] for name in source_splits(source)]
+    splits = source_splits(source) if splits is None else tuple(splits)
+    if not splits or not set(splits).issubset(source_splits(source)):
+        raise ValueError(f"Invalid {source} processing splits: {splits}")
+    windows = [config.TIME_WINDOWS[name] for name in splits]
     first, last = min(window[0] for window in windows), max(window[1] for window in windows)
     for variable in config.CLIMATE_VARIABLES:
         pattern = config.NETCDF_SOURCE_PATTERNS[source].format(variable=variable)
@@ -165,6 +168,8 @@ def process_netcdf_source(source, grid, boundary, output_dir=None):
                 continue
             combined = xr.concat(pieces, dim="time", coords="minimal", compat="equals")
             for split, daily in daily_partitions(combined, source):
+                if split not in splits:
+                    continue
                 daily.attrs["source_cell_methods"] = daily.attrs.get("cell_methods", "")
                 daily.attrs["cell_methods"] = "area: mean time: mean"
                 dataset = daily.to_dataset(name=variable)

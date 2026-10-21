@@ -39,11 +39,14 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(
             config.TIME_WINDOWS,
             {
+                "history": ("2020-08-01", "2020-08-31"),
                 "training_validation": ("2020-09-01", "2025-08-31"),
                 "testing": ("2025-09-01", "2026-08-31"),
                 "forecasting": ("2026-09-01", "2027-08-31"),
             },
         )
+        self.assertEqual(config.FIRE_START_DATE, "2018-09-01")
+        self.assertEqual(config.FIRE_HISTORY_YEARS, 2)
 
     def test_time_windows_are_contiguous_and_do_not_overlap(self):
         previous_end = None

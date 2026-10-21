@@ -123,13 +123,13 @@ class FireTests(unittest.TestCase):
     def test_inclusive_date_filter_uses_report_dates_without_status_substitution(self):
         records = pd.DataFrame({
             "fire_id": ["same"] * 7, "latitude": [50] * 7, "longitude": [-100] * 7,
-            "report_date": ["2020-08-31T22:32:00", "2020-09-01T00:00:00", "2023-05-25T18:20:00",
+            "report_date": ["2018-08-31T22:32:00", "2018-09-01T00:00:00", "2023-05-25T18:20:00",
                             "2026-08-31T23:30:00-07:00", "2026-09-01T00:00:00", "", "2026-02-30T01:00:00"],
             "status_date": ["2026-05-27T18:50:00"] * 7, "size_ha": [1000] * 7,
         })
         original = records.copy(deep=True)
         actual = data_fire.standardize_records(records)
-        self.assertEqual(actual.report_date.tolist(), ["2020-09-01", "2023-05-25", "2026-08-31"])
+        self.assertEqual(actual.report_date.tolist(), ["2018-09-01", "2023-05-25", "2026-08-31"])
         self.assertNotIn("status_date", actual)
         self.assertEqual(actual.fire_id.tolist(), ["same"] * 3)
         pd.testing.assert_frame_equal(records, original)
@@ -161,7 +161,7 @@ class FireTests(unittest.TestCase):
                 "national_fire_id": ["001", "NA", "before", "after"],
                 "latitude": [50, 51, 50, 50], "longitude": [-100, -101, -100, -100],
                 "situation_report_date": ["2020-09-01T22:32:00", "2026-08-31T00:00:00",
-                                          "2020-08-31T00:00:00", "2026-09-01T00:00:00"],
+                                          "2018-08-31T00:00:00", "2026-09-01T00:00:00"],
                 "status_date": ["2026-10-09T18:50:00"] * 4,
                 "fire_size": ["999.9", "-1", "2000", "2000"],
             }).to_csv(cwfis, index=False)
@@ -186,7 +186,7 @@ class FireTests(unittest.TestCase):
             pd.DataFrame({
                 "national_fire_id": ["2020_SK_large", "2020_SK_outside"],
                 "latitude": [50, 50], "longitude": [-100, -100],
-                "situation_report_date": ["2020-09-01", "2020-08-31"],
+                "situation_report_date": ["2020-09-01", "2018-08-31"],
                 "fire_size": [1500, 2000],
             }).to_csv(folder / "reported_fires_2020_year_end.csv", index=False)
             pd.DataFrame({

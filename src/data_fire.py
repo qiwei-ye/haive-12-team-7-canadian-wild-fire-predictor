@@ -93,7 +93,7 @@ def standardize_records(records):
     result["fire_id"] = result.fire_id.astype("string").str.strip().replace("", pd.NA)
     # Read the ISO date portion without converting time zones or using status dates.
     result["report_date"] = calendar_dates(result.report_date)
-    start = config.TIME_WINDOWS["training_validation"][0]
+    start = config.FIRE_START_DATE
     end = config.TIME_WINDOWS["testing"][1]
     result = result.loc[result.report_date.between(start, end).fillna(False)].copy()
     for name, bounds in (("latitude", (-90, 90)), ("longitude", (-180, 180))):

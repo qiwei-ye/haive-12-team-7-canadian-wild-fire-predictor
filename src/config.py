@@ -5,6 +5,7 @@ source module. Paths are anchored to the project, regardless of the working
 directory used to launch Python.
 """
 
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -51,9 +52,13 @@ TEST_START_DATE = "2025-09-01"
 TEST_END_DATE = "2026-08-31"
 FORECAST_START_DATE = "2026-09-01"
 FORECAST_END_DATE = "2027-08-31"
+FIRE_START_DATE = "2018-09-01"
+PREDICTOR_HISTORY_START_DATE = "2020-08-01"
 
 # ISO dates also support inclusive, whole-day slicing in xarray.
 TIME_WINDOWS = {
+    "history": (PREDICTOR_HISTORY_START_DATE,
+                (date.fromisoformat(TRAIN_VALIDATION_START_DATE) - timedelta(days=1)).isoformat()),
     "training_validation": (TRAIN_VALIDATION_START_DATE, TRAIN_VALIDATION_END_DATE),
     "testing": (TEST_START_DATE, TEST_END_DATE),
     "forecasting": (FORECAST_START_DATE, FORECAST_END_DATE),
@@ -136,3 +141,11 @@ FIRE_NEIGHBOUR_OFFSETS = tuple(
     for column in (-1, 0, 1)
     if (row, column) != (0, 0)
 )
+FIRE_HISTORY_YEARS = 2
+FIRE_HISTORY_VARIABLES = (
+    "previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
+)
+ROLLING_WEATHER_FEATURES = {
+    "30_day_pr": {"variable": "pr", "days": 30, "aggregation": "sum", "units": "mm"},
+    "7_day_min_avg_tas": {"variable": "tas", "days": 7, "aggregation": "min", "units": CLIMATE_UNITS["tas"]},
+}
