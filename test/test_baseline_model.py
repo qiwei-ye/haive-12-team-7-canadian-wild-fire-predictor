@@ -112,7 +112,10 @@ class BaselineModelTests(unittest.TestCase):
         ds = xr.Dataset({"tas": (("time", "cell"), values), "landcover": ("cell", category),
             "is_large_fire": (("time", "cell"), target),
             "partition": ("time", ["training"] * 4 + ["validation"] + ["test"] * 2)},
-            coords={"time": dates, "cell": np.arange(200)}, attrs={"selected_predictors": json.dumps(["tas", "landcover"])})
+            coords={"time": dates, "cell": np.arange(200),
+                    "lat": ("cell", np.linspace(50, 60, 200)),
+                    "lon": ("cell", np.linspace(-120, -100, 200))},
+            attrs={"selected_predictors": json.dumps(["tas", "landcover"])})
         with TemporaryDirectory() as directory, patch.object(config, "TIME_WINDOWS", windows), patch.object(config, "BASELINE_C_GRID", (.01, 1.)):
             root = Path(directory)
             source, report, output = root / "inputs.nc", root / "binning.csv", root / "outputs"
@@ -142,6 +145,21 @@ class BaselineModelTests(unittest.TestCase):
             self.assertTrue((output / config.BASELINE_COEFFICIENTS_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_PERFORMANCE_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_ROC_PATH.name).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            with xr.open_dataset(output / config.BASELINE_PROBABILITIES_PATH.name) as exported:
+                self.assertEqual(set(exported.data_vars), {"large_fire_probability", "partition"})
+                self.assertEqual(exported.large_fire_probability.dims, ("time", "cell"))
+                self.assertEqual(exported.large_fire_probability.dtype, np.dtype("float64"))
+                self.assertEqual(exported.large_fire_probability.attrs["units"], "1")
+                self.assertEqual(exported.attrs["fit_partition"], "training")
+                self.assertNotIn("selected_predictors", exported.attrs)
+                for name in ("time", "cell", "lat", "lon", "partition"):
+                    np.testing.assert_array_equal(exported[name].values, ds[name].values)
+                for partition in performance.partition:
+                    raw, _, _ = baseline.load_model_partition(source, partition)
+                    with threadpool_limits(limits=1):
+                        expected = model.predict_proba(baseline.transform_woe(raw, bins))[:, 1]
+                    actual = exported.large_fire_probability.where(exported.partition == partition, drop=True)
+                    np.testing.assert_array_equal(actual.values.reshape(-1), expected)
             self.assertEqual(source.read_bytes(), original_source)
             self.assertEqual(report.read_bytes(), original_bins)
 

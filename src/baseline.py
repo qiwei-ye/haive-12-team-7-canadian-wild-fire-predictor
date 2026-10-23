@@ -358,10 +358,10 @@ def partition_performance(target, probabilities, partition, threshold):
 
 
 def run_classifier(input_path=None, binning_path=None, output_dir=None):
-    """Fit selected WoE predictors; export coefficients, partition metrics, and ROC."""
+    """Fit selected WoE predictors; export coefficients, metrics, ROC, and probabilities."""
     input_path = Path(input_path) if input_path is not None else config.INPUT_DATA_DIR / config.CLEAN_MERGED_FILENAME
     binning_path = Path(binning_path) if binning_path is not None else config.BINNING_OUTPUT_PATH
-    output_dir = Path(output_dir) if output_dir is not None else config.OUTPUTS_DIR
+    output_dir = Path(output_dir) if output_dir is not None else config.BASELINE_OUTPUTS_DIR
     if any(output_dir.resolve().is_relative_to(path.resolve()) for path in
            (config.RAW_DATA_DIR, config.PROCESSED_DATA_DIR, config.CLEAN_DATA_DIR, config.INPUT_DATA_DIR)):
         raise ValueError("Baseline outputs must be separate from source data directories")
@@ -386,6 +386,55 @@ def run_classifier(input_path=None, binning_path=None, output_dir=None):
     coefficients, performance = evaluate_classifier(
         model, cv, names, input_path, bins, output_dir, training_data=(x_train, y_train, coverage))
     return model, coefficients, performance
+
+
+def export_probabilities(input_path, partition_probabilities, output_path, metadata):
+    """Save fitted probabilities on the input time/cell grid without predictors."""
+    output_path = Path(output_path)
+    if any(output_path.resolve().is_relative_to(path.resolve()) for path in
+           (config.RAW_DATA_DIR, config.PROCESSED_DATA_DIR, config.CLEAN_DATA_DIR, config.INPUT_DATA_DIR)):
+        raise ValueError("Baseline outputs must be separate from source data directories")
+    with xr.open_dataset(input_path) as source:
+        labels = source.partition.values
+        if set(labels) != set(partition_probabilities):
+            raise ValueError("Probability partitions must match the input partitions")
+        values = np.empty((source.sizes["time"], source.sizes["cell"]), dtype=np.float64)
+        for partition, probabilities in partition_probabilities.items():
+            positions = np.flatnonzero(labels == partition)
+            probabilities = np.asarray(probabilities, dtype=np.float64)
+            if probabilities.shape != (len(positions) * source.sizes["cell"],):
+                raise ValueError(f"Probability count differs from input cell-days: {partition}")
+            if not np.isfinite(probabilities).all() or ((probabilities < 0) | (probabilities > 1)).any():
+                raise ValueError(f"Probabilities must be finite and between 0 and 1: {partition}")
+            values[positions] = probabilities.reshape(len(positions), source.sizes["cell"])
+        coordinates = {name: source.coords[name].load().copy(deep=True)
+                       for name in ("time", "cell", "lat", "lon") if name in source.coords}
+        attributes = {name: source.attrs[name] for name in
+                      ("crs", "latitude_resolution_degrees", "longitude_resolution_degrees", "time_sampling")
+                      if name in source.attrs}
+        dataset = xr.Dataset(
+            {"large_fire_probability": (("time", "cell"), values),
+             "partition": ("time", labels, dict(source.partition.attrs))},
+            coords=coordinates,
+            attrs={**attributes, **metadata,
+                   "title": "WoE L2 logistic regression fitted cell-day probabilities",
+                   "training_predictions": "In-sample probabilities from the final full-training model; not out-of-fold",
+                   "heldout_predictions": "Validation and test probabilities from the same training-fitted model",
+                   "probability_definition": f"Probability of {config.FIRE_OUTPUT_COLUMNS[-1]}=1; large fire area >= {config.LARGE_FIRE_THRESHOLD_HA} ha"})
+    dataset.large_fire_probability.attrs = {
+        "long_name": "Fitted probability of a large fire in this cell-day",
+        "units": "1", "valid_min": 0., "valid_max": 1.}
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output_path.with_suffix(".partial.nc")
+    try:
+        dataset.to_netcdf(temporary, engine="netcdf4", encoding={
+            "large_fire_probability": {"dtype": "float64", "zlib": True, "complevel": 4}})
+        temporary.replace(output_path)
+    finally:
+        dataset.close()
+        temporary.unlink(missing_ok=True)
+    LOGGER.info("Saved fitted cell-day probabilities to %s", output_path)
+    return output_path
 
 
 def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training_data=None):
@@ -421,7 +470,7 @@ def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training
     coefficients["odds_ratio"] = np.exp(coefficients.coefficient)
     for name, value in common.items():
         coefficients[name] = value
-    performance, curves = [], {}
+    performance, curves, partition_probabilities = [], {}, {}
     for partition in partition_dates():
         if partition == "training":
             y, metadata, probabilities = y_train, coverage, training_probabilities
@@ -440,10 +489,13 @@ def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training
                         "cv_auc_by_C": cv.to_json(orient="records", double_precision=12)})
         performance.append(metrics)
         curves[partition] = curve
+        partition_probabilities[partition] = probabilities
         LOGGER.info("%s: ROC-AUC=%.6f; TN=%s FP=%s FN=%s TP=%s", partition, metrics["roc_auc"],
                     metrics["tn"], metrics["fp"], metrics["fn"], metrics["tp"])
     performance = pd.DataFrame(performance)
     output_dir.mkdir(parents=True, exist_ok=True)
+    export_probabilities(input_path, partition_probabilities,
+                         output_dir / config.BASELINE_PROBABILITIES_PATH.name, common)
     for frame, filename in ((coefficients, config.BASELINE_COEFFICIENTS_PATH.name),
                             (performance, config.BASELINE_PERFORMANCE_PATH.name)):
         path = output_dir / filename
@@ -482,7 +534,7 @@ def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training
     finally:
         temporary.unlink(missing_ok=True)
         figure.clear()
-    LOGGER.info("Saved baseline coefficients, performance, and ROC plot under %s", output_dir)
+    LOGGER.info("Saved baseline coefficients, performance, ROC plot, and probabilities under %s", output_dir)
     return coefficients, performance
 
 
@@ -492,7 +544,7 @@ def main(argv=None):
     parser.add_argument("--input", type=Path, help="Default: data/inputs/merged.nc with --fit; data/clean/merged.nc for binning")
     parser.add_argument("--output", type=Path, default=config.BINNING_OUTPUT_PATH)
     parser.add_argument("--binning", type=Path, default=config.BINNING_OUTPUT_PATH)
-    parser.add_argument("--output-dir", type=Path, default=config.OUTPUTS_DIR)
+    parser.add_argument("--output-dir", type=Path, default=config.BASELINE_OUTPUTS_DIR)
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:

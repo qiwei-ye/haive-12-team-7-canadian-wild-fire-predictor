@@ -20,6 +20,7 @@ CLEAN_DATA_DIR = DATA_DIR / "clean"
 INPUT_DATA_DIR = DATA_DIR / "inputs"
 CLEAN_MERGED_FILENAME = "merged.nc"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+BASELINE_OUTPUTS_DIR = OUTPUTS_DIR / "baseline"
 
 RANDOM_SEED = 42
 TRAIN_FRACTION = 0.8
@@ -179,6 +180,7 @@ BASELINE_TOLERANCE = 1e-8
 # Cost per cell-day: rows are actual non-fire/fire, columns unflagged/flagged.
 # TN=unflagged/non-fire, FP=flagged/non-fire, FN=unflagged/fire, TP=flagged/fire.
 BASELINE_CONFUSION_COSTS = {"tn": 0, "fp": 1, "fn": 1_000, "tp": 50}
-BASELINE_COEFFICIENTS_PATH = OUTPUTS_DIR / "baseline_coefficients.csv"
-BASELINE_PERFORMANCE_PATH = OUTPUTS_DIR / "baseline_performance.csv"
-BASELINE_ROC_PATH = OUTPUTS_DIR / "baseline_performance.png"
+BASELINE_COEFFICIENTS_PATH = BASELINE_OUTPUTS_DIR / "baseline_coefficients.csv"
+BASELINE_PERFORMANCE_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.csv"
+BASELINE_ROC_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.png"
+BASELINE_PROBABILITIES_PATH = BASELINE_OUTPUTS_DIR / "baseline_probabilities.nc"

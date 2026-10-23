@@ -1,4 +1,10 @@
-# Baseline binning
+# Outputs
+
+`binning.csv` and `variable_selection.csv` document shared predictor preparation
+for all models. Regression outputs for the WoE logistic baseline are stored in
+`baseline/`.
+
+## Predictor binning
 
 Run from the project root after installing `requirements.txt`:
 
@@ -42,7 +48,7 @@ OptBinning's numerical method and constraints follow its
 The script writes only this bin documentation; cleaned and processed data are
 unchanged. Use `--input` and `--output` to select alternative paths.
 
-# Variable selection
+## Variable selection
 
 After binning, run:
 
@@ -73,7 +79,7 @@ The inputs NetCDF also uses Git LFS. Source clean files and binning statistics
 remain unchanged. Parameters and default paths are in `src/config.py`; use
 `--clean-dir`, `--output-dir`, `--binning`, and `--report` for alternate paths.
 
-# L2 logistic regression
+## L2 logistic regression
 
 After variable selection, run:
 
@@ -123,9 +129,18 @@ that separate evaluation.
 
 | Output | Contents |
 | --- | --- |
-| `baseline_coefficients.csv` | Intercept and one coefficient per selected WoE predictor; odds ratios are `exp(coefficient)` per one WoE unit. Includes chosen C, threshold, cost assumptions, and training/CV metadata. |
-| `baseline_performance.csv` | One row per training/validation/test partition: TN, FP, FN, TP counts, probability-based ROC-AUC, optimized threshold, total/mean cost, unflag-everything comparison cost, precision, recall, specificity, F1, and accuracy. Includes all candidate mean/std/fold AUCs in the JSON-valued `cv_auc_by_C` field. |
-| `baseline_performance.png` | ROC curves and AUCs for all three partitions; training is marked in-sample. Matching coloured dots mark the selected threshold's operating point on each curve. |
+| `baseline/baseline_coefficients.csv` | Intercept and one coefficient per selected WoE predictor; odds ratios are `exp(coefficient)` per one WoE unit. Includes chosen C, threshold, cost assumptions, and training/CV metadata. |
+| `baseline/baseline_performance.csv` | One row per training/validation/test partition: TN, FP, FN, TP counts, probability-based ROC-AUC, optimized threshold, total/mean cost, unflag-everything comparison cost, precision, recall, specificity, F1, and accuracy. Includes all candidate mean/std/fold AUCs in the JSON-valued `cv_auc_by_C` field. |
+| `baseline/baseline_performance.png` | ROC curves and AUCs for all three partitions; training is marked in-sample. Matching coloured dots mark the selected threshold's operating point on each curve. |
+| `baseline/baseline_probabilities.nc` | Fitted `large_fire_probability(time, cell)` and `partition(time)` for every retained training/validation/test cell-day, with the input time, cell IDs, latitude/longitude coordinates, and CRS metadata. No predictor or observed-target values are included. |
+
+The probability NetCDF uses compressed float64 values from the final model fitted
+on all training rows. Training probabilities are in-sample, rather than out-of-fold;
+validation/test probabilities use the same fitted model. Dates and cells match
+`data/inputs/merged.nc`, including its exclusions. Probability values range from
+0 to 1 and are independent of the chosen flag threshold. Model, training, threshold,
+and cost metadata document the exported predictions. Each `--fit` run writes this
+file alongside the other regression outputs.
 
 Standard metrics are ratios from 0 to 1: precision is `TP / (TP + FP)`, recall is
 `TP / (TP + FN)`, and specificity is `TN / (TN + FP)`. These use 0 when their
@@ -136,6 +151,7 @@ denominator is zero. F1 is `2*TP / (2*TP + FP + FN)` and accuracy is
 describe log odds of `is_large_fire=1`, using the existing WoE convention where
 larger WoE represents a lower univariate fire rate. Positive/negative regression
 coefficients increase/decrease log odds as that predictor's WoE increases.
-Use `--input`, `--binning`, and `--output-dir` with `--fit` for alternative paths.
+The default regression output directory is `outputs/baseline/`. Use `--input`,
+`--binning`, and `--output-dir` with `--fit` for alternative paths.
 The implementation follows scikit-learn's
 [logistic regression API](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
