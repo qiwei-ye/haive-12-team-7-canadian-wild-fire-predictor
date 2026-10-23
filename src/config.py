@@ -17,7 +17,9 @@ FIRE_DATA_DIR = RAW_DATA_DIR / "fire"
 GEOLOGICAL_DATA_DIR = RAW_DATA_DIR / "geological"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 CLEAN_DATA_DIR = DATA_DIR / "clean"
+INPUT_DATA_DIR = DATA_DIR / "inputs"
 CLEAN_MERGED_FILENAME = "merged.nc"
+OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 RANDOM_SEED = 42
 TRAIN_FRACTION = 0.8
@@ -157,3 +159,13 @@ TAS_FILL_DEFINITION = (
     "without observations remain missing. The centered window uses future days "
     "and can cross temporal partition boundaries."
 )
+
+# Supervised baseline binning; identifiers/coordinates are not predictors.
+BINNING_NUMERICAL_BINS = 5
+BINNING_CATEGORICAL_PREDICTORS = ("landcover", *FIRE_HISTORY_VARIABLES)
+BINNING_OUTPUT_PATH = OUTPUTS_DIR / "binning.csv"
+
+# Greedy IV-ranked selection on raw training predictors; binary flags use Pearson.
+VARIABLE_SELECTION_CORRELATION_THRESHOLD = 0.6
+VARIABLE_SELECTION_NOMINAL_PREDICTORS = MERGE_STATIC_PREDICTORS["landcover"]
+VARIABLE_SELECTION_OUTPUT_PATH = OUTPUTS_DIR / "variable_selection.csv"

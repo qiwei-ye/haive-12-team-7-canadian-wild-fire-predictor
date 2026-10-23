@@ -127,3 +127,28 @@ existing centre-filtered grid are excluded and documented in the summary. They
 are never moved to a neighbouring cell. Raw and processed inputs remain unchanged.
 CIFFC, NFDB, fuel type, ecodistrict identifiers, and forecast-only climate sources are
 excluded from these historical modelling tables.
+
+To create model-input tables with the selected predictors, first generate the
+training-only binning report, then run variable selection:
+
+```powershell
+.venv/Scripts/python.exe -m src.baseline
+.venv/Scripts/python.exe -m src.variable_selection
+```
+
+The second command reuses the existing binning IVs and calculates raw predictor
+correlations on training rows only. In descending IV order, it rejects a predictor
+when its absolute Pearson correlation with an already retained predictor exceeds
+the configured 0.6 threshold. Nominal land cover is retained outside this filter;
+binary fire-history flags participate. Decisions, IVs, and the full correlation
+matrix are saved in `outputs/variable_selection.csv`.
+
+`data/inputs/` mirrors `data/clean/`: `training/`, `validation/`, and `test/`
+contain one CSV per existing date, accompanied by `merged.nc` and
+`merge_summary.json`. Only dropped predictor columns are removed. The dates,
+cells, coordinates, target, partition labels, exclusions, and retained values are
+preserved. Predictors stay in their original units; no WoE transformation,
+additional imputation, or new split is performed. The summary records selection
+details and the NetCDF retains its spatial metadata and source storage types.
+The inputs NetCDF uses Git LFS, as does the cleaned NetCDF. Clean files remain
+unchanged; regenerating the clean data requires rerunning binning and selection.

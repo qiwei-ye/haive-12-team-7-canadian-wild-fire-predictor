@@ -24,3 +24,4 @@ seaborn
 plotly
 scipy
 cvxpy
+optbinning==1.0.0
