@@ -169,3 +169,16 @@ BINNING_OUTPUT_PATH = OUTPUTS_DIR / "binning.csv"
 VARIABLE_SELECTION_CORRELATION_THRESHOLD = 0.6
 VARIABLE_SELECTION_NOMINAL_PREDICTORS = MERGE_STATIC_PREDICTORS["landcover"]
 VARIABLE_SELECTION_OUTPUT_PATH = OUTPUTS_DIR / "variable_selection.csv"
+
+# L2 logistic regression on the selected predictors' existing training WoE.
+BASELINE_CV_FOLDS = 5
+BASELINE_C_GRID = tuple(10.0 ** exponent for exponent in range(-5, 6))
+BASELINE_SOLVER = "newton-cholesky"
+BASELINE_MAX_ITER = 1_000
+BASELINE_TOLERANCE = 1e-8
+# Cost per cell-day: rows are actual non-fire/fire, columns unflagged/flagged.
+# TN=unflagged/non-fire, FP=flagged/non-fire, FN=unflagged/fire, TP=flagged/fire.
+BASELINE_CONFUSION_COSTS = {"tn": 0, "fp": 1, "fn": 1_000, "tp": 50}
+BASELINE_COEFFICIENTS_PATH = OUTPUTS_DIR / "baseline_coefficients.csv"
+BASELINE_PERFORMANCE_PATH = OUTPUTS_DIR / "baseline_performance.csv"
+BASELINE_ROC_PATH = OUTPUTS_DIR / "baseline_performance.png"

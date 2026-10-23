@@ -33,8 +33,8 @@ positive WoE indicates a lower large-fire rate. IV is the sum of
 `(non-event distribution - event distribution) * WoE`. No smoothing is applied:
 populated bins with zero events or non-events retain infinite WoE/IV and are
 identified by `woe_status`. Unseen validation/test categories do not acquire bins
-or estimated WoE from heldout data; applying bins and fitting a predictive model
-are outside this step. The existing centered temperature imputation remains part
+or estimated WoE from heldout data. The separate regression step below applies
+these bins. The existing centered temperature imputation remains part
 of the cleaned inputs; this step performs no further imputation.
 
 OptBinning's numerical method and constraints follow its
@@ -72,3 +72,70 @@ targets, partition labels, source values, units, and exclusions are preserved.
 The inputs NetCDF also uses Git LFS. Source clean files and binning statistics
 remain unchanged. Parameters and default paths are in `src/config.py`; use
 `--clean-dir`, `--output-dir`, `--binning`, and `--report` for alternate paths.
+
+# L2 logistic regression
+
+After variable selection, run:
+
+```powershell
+.venv/Scripts/python.exe -m src.baseline --fit
+```
+
+The model reads the selected raw predictors from `data/inputs/merged.nc` and
+applies their **exact existing WoE values** from `binning.csv`. Interval edges
+remain left-inclusive/right-exclusive; categorical bins remain single categories.
+No bin refitting, smoothing, scaling, class weighting, or resampling is performed.
+Missing/unseen categories without a documented finite WoE stop the run rather
+than receiving an invented value. Binning coverage and class counts must agree
+with the training inputs. Source datasets, binning, and selection files are not
+modified.
+
+`src/config.py` sets five shuffled stratified folds, seed `RANDOM_SEED`, and the
+eleven inverse-regularization strengths `C = 10**i`, for integer `i = -5, ..., 5`.
+Each candidate is evaluated by mean ROC-AUC over **training-only** folds. Exact
+ties favour the smallest C. The chosen L2 model is refitted on all training rows;
+validation/test values and targets do not affect its coefficients or C. The
+`newton-cholesky` solver uses warm starts only between C values within one fold;
+the final fit starts independently. Fits must converge. ROC-AUC uses predicted
+probabilities. After C is chosen, the flag threshold minimizes total cost on the
+final model's **training predictions**, using `BASELINE_CONFUSION_COSTS`:
+
+| Actual cell-day outcome | Unflagged | Flagged |
+| --- | ---: | ---: |
+| No large fire | 0 (TN) | 1 (FP) |
+| Large fire | 1,000 (FN) | 50 (TP) |
+
+Thus total cost is `FP + 50*TP + 1000*FN`; correctly flagged fires still incur cost.
+The search evaluates every distinct probability cutoff, keeps equal probabilities
+together under `probability >= threshold`, and includes flagging no rows or all
+rows. Equal costs favour the highest threshold (fewest flags). The same chosen
+threshold is applied to validation and test without further optimization.
+Threshold selection is in-sample, using no validation/test outcomes. It changes
+the confusion matrices and costs; ROC-AUC is independent of that cutoff.
+
+The existing supervised bins and variable selection were learned using the full
+training partition, before these folds. Consequently, CV scores are conditional
+on that fixed preprocessing, and are not an independent assessment of the entire
+binning/selection pipeline. The training performance row and ROC curve are
+in-sample; validation and test are held out. These shuffled row folds do not
+measure forward-in-time generalization; the dated heldout partitions provide
+that separate evaluation.
+
+| Output | Contents |
+| --- | --- |
+| `baseline_coefficients.csv` | Intercept and one coefficient per selected WoE predictor; odds ratios are `exp(coefficient)` per one WoE unit. Includes chosen C, threshold, cost assumptions, and training/CV metadata. |
+| `baseline_performance.csv` | One row per training/validation/test partition: TN, FP, FN, TP counts, probability-based ROC-AUC, optimized threshold, total/mean cost, unflag-everything comparison cost, precision, recall, specificity, F1, and accuracy. Includes all candidate mean/std/fold AUCs in the JSON-valued `cv_auc_by_C` field. |
+| `baseline_performance.png` | ROC curves and AUCs for all three partitions; training is marked in-sample. Matching coloured dots mark the selected threshold's operating point on each curve. |
+
+Standard metrics are ratios from 0 to 1: precision is `TP / (TP + FP)`, recall is
+`TP / (TP + FN)`, and specificity is `TN / (TN + FP)`. These use 0 when their
+denominator is zero. F1 is `2*TP / (2*TP + FP + FN)` and accuracy is
+`(TP + TN) / rows`.
+
+`inverse_C` records `1/C`; it is not a fitted variable coefficient. Coefficients
+describe log odds of `is_large_fire=1`, using the existing WoE convention where
+larger WoE represents a lower univariate fire rate. Positive/negative regression
+coefficients increase/decrease log odds as that predictor's WoE increases.
+Use `--input`, `--binning`, and `--output-dir` with `--fit` for alternative paths.
+The implementation follows scikit-learn's
+[logistic regression API](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
