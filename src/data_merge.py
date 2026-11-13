@@ -30,7 +30,8 @@ def _clean_target_definitions():
 
 
 def feature_definitions():
-    window = f"[{config.FIRE_HISTORY_YEARS} calendar years before the row date, row date)"
+    window = (f"[{config.FIRE_HISTORY_YEARS + config.FIRE_HISTORY_LAG_YEARS} calendar years before the row date, "
+              f"{config.FIRE_HISTORY_LAG_YEARS} calendar year(s) before the row date)")
     result = {
         "tas": config.TAS_FILL_DEFINITION,
         "previous_large_fire": f"1 if a known large fire occurred in this cell in {window}; otherwise 0",
@@ -117,12 +118,21 @@ def assign_fire_cells(records, grid, boundary):
     return retained, excluded
 
 
+def fire_history_bounds(day):
+    """Inclusive/exclusive calendar bounds for the configured lagged history."""
+    day = pd.Timestamp(day)
+    return (day - pd.DateOffset(years=config.FIRE_HISTORY_LAG_YEARS + config.FIRE_HISTORY_YEARS),
+            day - pd.DateOffset(years=config.FIRE_HISTORY_LAG_YEARS))
+
+
 def daily_fire_fields(records, dates, neighbours):
-    """Use known-size reports in the preceding calendar years, excluding today."""
+    """Use known-size reports in the configured lagged two-year history window."""
     count = len(neighbours)
     dates = pd.DatetimeIndex(dates)
     if dates.has_duplicates or not dates.is_monotonic_increasing:
         raise ValueError("Fire history dates must be unique and increasing")
+    if config.FIRE_HISTORY_YEARS <= 0 or config.FIRE_HISTORY_LAG_YEARS < 0:
+        raise ValueError("Fire history duration must be positive and its lag nonnegative")
     history = records.loc[records.is_large_fire.notna()].sort_values("report_date", kind="stable")
     event_dates = history.report_date.to_numpy(dtype="datetime64[ns]")
     cells = history._cell_index.to_numpy(dtype=int)
@@ -132,8 +142,9 @@ def daily_fire_fields(records, dates, neighbours):
     left = right = 0
     reports = dict(tuple(records.groupby("report_date", sort=True)))
     for day in dates:
-        end = int(np.searchsorted(event_dates, day.to_datetime64(), side="left"))
-        start = int(np.searchsorted(event_dates, (day - pd.DateOffset(years=config.FIRE_HISTORY_YEARS)).to_datetime64(), side="left"))
+        window_start, window_end = fire_history_bounds(day)
+        end = int(np.searchsorted(event_dates, window_end.to_datetime64(), side="left"))
+        start = int(np.searchsorted(event_dates, window_start.to_datetime64(), side="left"))
         np.add.at(large_counts, cells[right:end], large[right:end])
         np.add.at(small_counts, cells[right:end], 1 - large[right:end])
         np.add.at(large_counts, cells[left:start], -large[left:start])
@@ -447,7 +458,7 @@ def merge(processed_dir=None, output_dir=None, boundary_path=None):
             "neighbour_offsets": config.FIRE_NEIGHBOUR_OFFSETS,
             **_clean_target_definitions(),
             "fire_history_coverage": f"Available {source_names} reports from {config.FIRE_START_DATE}; missing historical reporting does not establish absence",
-            "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
+            "omitted_date_history": "Fire reports on omitted CSV dates still contribute when they fall inside a later row's lagged history window",
             "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated",
         },
     }

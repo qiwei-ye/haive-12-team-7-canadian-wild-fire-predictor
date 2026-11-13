@@ -34,20 +34,24 @@ class MergeTests(unittest.TestCase):
             "is_large_fire": [0, 1, np.nan, np.nan, 1],
         })
 
-    def test_fire_history_strictly_precedes_day_and_diagonal_counts(self):
+    def test_fire_history_respects_one_year_lag_and_diagonal_counts(self):
         records, _ = data_merge.assign_fire_cells(self.records(), self.grid, self.boundary)
-        days = pd.date_range("2020-09-01", periods=6)
+        days = pd.to_datetime(["2020-09-01", "2020-09-02", "2020-09-06",
+                               "2021-09-02", "2021-09-03", "2021-09-06", "2021-09-07"])
         fields = dict(data_merge.daily_fire_fields(records, days, data_merge.connecting_cells(self.grid)))
         np.testing.assert_array_equal(fields[days[0]]["previous_large_fire"], [0, 0, 0, 0])
         np.testing.assert_array_equal(fields[days[0]]["previous_large_fire_neighbour"], [0, 0, 0, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_large_fire"], [0, 0, 0, 0])
-        np.testing.assert_array_equal(fields[days[1]]["previous_small_fire_neighbour"], [0, 1, 1, 1])
+        np.testing.assert_array_equal(fields[days[1]]["previous_small_fire_neighbour"], [0, 0, 0, 0])
+        np.testing.assert_array_equal(fields[days[3]]["previous_small_fire_neighbour"], [0, 1, 1, 1])
+        np.testing.assert_array_equal(fields[days[3]]["previous_large_fire"], [0, 0, 0, 0])
         # Unknown indicators use zero; a known large fire in the cell/day wins.
         np.testing.assert_array_equal(fields[days[1]]["is_large_fire"], [0, 1, 0, 0])
-        np.testing.assert_array_equal(fields[days[2]]["previous_large_fire"], [0, 1, 0, 0])
-        np.testing.assert_array_equal(fields[days[2]]["previous_large_fire_neighbour"], [1, 0, 1, 1])
-        self.assertEqual(fields[days[-1]]["previous_large_fire"][3], 0)
-        self.assertEqual(fields[days[-1]]["is_large_fire"][3], 1)
+        self.assertEqual(fields[days[2]]["is_large_fire"][3], 1)
+        np.testing.assert_array_equal(fields[days[4]]["previous_large_fire"], [0, 1, 0, 0])
+        np.testing.assert_array_equal(fields[days[4]]["previous_large_fire_neighbour"], [1, 0, 1, 1])
+        self.assertEqual(fields[days[5]]["previous_large_fire"][3], 0)
+        self.assertEqual(fields[days[6]]["previous_large_fire"][3], 1)
 
     def test_history_survives_partition_start_and_missing_neighbours_stay_absent(self):
         grid = self.grid.isel(cell=[0])
@@ -55,14 +59,14 @@ class MergeTests(unittest.TestCase):
         events.loc[0, ["size_ha", "is_large_fire"]] = [1000, 1]
         records, _ = data_merge.assign_fire_cells(events, grid, self.boundary)
         fields = next(data_merge.daily_fire_fields(
-            records, pd.date_range("2020-09-03", periods=1), data_merge.connecting_cells(grid)))[1]
+            records, pd.date_range("2021-09-03", periods=1), data_merge.connecting_cells(grid)))[1]
         np.testing.assert_array_equal(fields["previous_large_fire"], [1])
         np.testing.assert_array_equal(fields["previous_large_fire_neighbour"], [0])
         np.testing.assert_array_equal(fields["previous_small_fire_neighbour"], [0])
 
     def test_reports_on_omitted_days_still_enter_later_history_without_leakage(self):
         records, _ = data_merge.assign_fire_cells(self.records(), self.grid, self.boundary)
-        days = pd.to_datetime(["2020-09-01", "2020-09-03"])
+        days = pd.to_datetime(["2021-09-02", "2021-09-03"])
         fields = dict(data_merge.daily_fire_fields(records, days, data_merge.connecting_cells(self.grid)))
         np.testing.assert_array_equal(fields[days[0]]["previous_large_fire"], [0, 0, 0, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_large_fire"], [0, 1, 0, 0])
@@ -88,12 +92,12 @@ class MergeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identifiers do not match"):
             data_merge.connecting_cells(wrong_grid)
 
-    def test_two_year_history_expires_includes_anniversary_and_excludes_unknown_sizes(self):
+    def test_lagged_history_includes_lower_bound_excludes_upper_bound_and_unknown_sizes(self):
         events = pd.DataFrame({
-            "fire_id": ["large", "small", "unknown", "today"],
-            "latitude": [50.2, 51.2, 50.2, 51.2], "longitude": [-99.8, -98.8, -98.8, -99.8],
-            "report_date": ["2018-09-01", "2018-09-01", "2019-05-01", "2020-09-01"],
-            "size_ha": [1000, 999.9, np.nan, 1000], "is_large_fire": [1, 0, np.nan, 1],
+            "fire_id": ["large", "small", "unknown", "upper", "today"],
+            "latitude": [50.2, 51.2, 50.2, 51.2, 51.2], "longitude": [-99.8, -98.8, -98.8, -99.8, -99.8],
+            "report_date": ["2017-09-01", "2017-09-01", "2018-05-01", "2019-09-01", "2020-09-01"],
+            "size_ha": [1000, 999.9, np.nan, 1000, 1000], "is_large_fire": [1, 0, np.nan, 1, 1],
         })
         records, excluded = data_merge.assign_fire_cells(events, self.grid, self.boundary)
         self.assertTrue(excluded.empty)
@@ -104,15 +108,35 @@ class MergeTests(unittest.TestCase):
         np.testing.assert_array_equal(fields[days[0]]["previous_small_fire_neighbour"], [1, 1, 1, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_large_fire"], [0, 0, 1, 0])
         np.testing.assert_array_equal(fields[days[1]]["previous_small_fire_neighbour"], [0, 0, 0, 0])
+        np.testing.assert_array_equal(fields[days[0]]["is_large_fire"], [0, 0, 1, 0])
+
+    def test_history_bounds_match_requested_example_and_first_training_date(self):
+        start, end = data_merge.fire_history_bounds("2026-06-10")
+        self.assertEqual(start, pd.Timestamp("2023-06-10"))
+        self.assertEqual(end, pd.Timestamp("2025-06-10"))
+        self.assertEqual(data_merge.fire_history_bounds(config.TRAIN_VALIDATION_START_DATE)[0],
+                         pd.Timestamp(config.FIRE_START_DATE))
+        definition = data_merge.feature_definitions()["previous_large_fire"]
+        self.assertIn("3 calendar years", definition)
+        self.assertIn("1 calendar year", definition)
 
     def test_calendar_year_lookback_handles_leap_day(self):
         events = self.records().iloc[:1].copy()
         events.loc[0, ["report_date", "size_ha", "is_large_fire"]] = ["2020-02-29", 1000, 1]
         records, _ = data_merge.assign_fire_cells(events, self.grid, self.boundary)
-        days = pd.to_datetime(["2022-02-28", "2022-03-01"])
+        days = pd.to_datetime(["2023-02-28", "2023-03-01"])
         fields = dict(data_merge.daily_fire_fields(records, days, data_merge.connecting_cells(self.grid)))
         self.assertEqual(fields[days[0]]["previous_large_fire"][0], 1)
         self.assertEqual(fields[days[1]]["previous_large_fire"][0], 0)
+
+    def test_history_upper_bound_handles_leap_day_without_recent_fire_leakage(self):
+        events = self.records().iloc[:1].copy()
+        events.loc[0, ["report_date", "size_ha", "is_large_fire"]] = ["2024-02-29", 1000, 1]
+        records, _ = data_merge.assign_fire_cells(events, self.grid, self.boundary)
+        days = pd.to_datetime(["2025-02-28", "2025-03-01"])
+        fields = dict(data_merge.daily_fire_fields(records, days, data_merge.connecting_cells(self.grid)))
+        self.assertEqual(fields[days[0]]["previous_large_fire"][0], 0)
+        self.assertEqual(fields[days[1]]["previous_large_fire"][0], 1)
 
     def test_weather_windows_include_today_retain_missing_days_and_recover(self):
         dates = pd.date_range("2020-08-01", periods=70)
@@ -193,7 +217,7 @@ class MergeTests(unittest.TestCase):
             self.assertEqual(first["30_day_pr"].iloc[0], 300)
             self.assertEqual(first["7_day_min_avg_tas"].iloc[0], 10)
             testing = pd.read_csv(root / "clean" / "test" / "2020-09-05.csv")
-            self.assertEqual(testing.previous_large_fire.tolist(), [0, 1, 0, 0])
+            self.assertEqual(testing.previous_large_fire.tolist(), [0, 0, 0, 0])
             self.assertNotIn("previous_fire", testing)
             self.assertNotIn("previous_fire_neighbour", testing)
             summary = json.loads((root / "clean" / "merge_summary.json").read_text())
@@ -250,7 +274,7 @@ class MergeTests(unittest.TestCase):
                 ("validation", "2020-09-04"), ("test", "2020-09-06")])
             self.assertFalse(any(path.exists() for path in stale))
             later = pd.read_csv(destination / "training" / "2020-09-03.csv")
-            self.assertEqual(later.previous_large_fire.tolist(), [0, 1, 0, 0])
+            self.assertEqual(later.previous_large_fire.tolist(), [0, 0, 0, 0])
             with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as merged:
                 self.assertEqual(pd.DatetimeIndex(merged.time.values).strftime("%Y-%m-%d").tolist(),
                                  ["2020-09-01", "2020-09-03", "2020-09-04", "2020-09-06"])

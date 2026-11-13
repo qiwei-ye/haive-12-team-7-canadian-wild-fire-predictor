@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import importlib
 from importlib import metadata
 from pathlib import Path
+import re
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -45,8 +46,9 @@ class ConfigurationTests(unittest.TestCase):
                 "forecasting": ("2026-09-01", "2027-08-31"),
             },
         )
-        self.assertEqual(config.FIRE_START_DATE, "2018-09-01")
+        self.assertEqual(config.FIRE_START_DATE, "2017-09-01")
         self.assertEqual(config.FIRE_HISTORY_YEARS, 2)
+        self.assertEqual(config.FIRE_HISTORY_LAG_YEARS, 1)
 
     def test_time_windows_are_contiguous_and_do_not_overlap(self):
         previous_end = None
@@ -121,7 +123,7 @@ class LibraryTests(unittest.TestCase):
         for requirement in requirements:
             if not requirement.strip() or requirement.startswith("#"):
                 continue
-            package = requirement.strip().split("[", 1)[0]
+            package = re.split(r"[\[<>=!~;\s]", requirement.strip(), maxsplit=1)[0]
             module_name = {"scikit-learn": "sklearn"}.get(package, package)
             with self.subTest(package=package):
                 self.assertTrue(metadata.version(package))

@@ -55,7 +55,7 @@ TEST_START_DATE = "2025-09-01"
 TEST_END_DATE = "2026-08-31"
 FORECAST_START_DATE = "2026-09-01"
 FORECAST_END_DATE = "2027-08-31"
-FIRE_START_DATE = "2018-09-01"
+FIRE_START_DATE = "2017-09-01"
 PREDICTOR_HISTORY_START_DATE = "2020-08-01"
 
 # ISO dates also support inclusive, whole-day slicing in xarray.
@@ -145,6 +145,7 @@ FIRE_NEIGHBOUR_OFFSETS = tuple(
     if (row, column) != (0, 0)
 )
 FIRE_HISTORY_YEARS = 2
+FIRE_HISTORY_LAG_YEARS = 1
 FIRE_HISTORY_VARIABLES = (
     "previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
 )
@@ -179,7 +180,7 @@ BASELINE_MAX_ITER = 1_000
 BASELINE_TOLERANCE = 1e-8
 # Cost per cell-day: rows are actual non-fire/fire, columns unflagged/flagged.
 # TN=unflagged/non-fire, FP=flagged/non-fire, FN=unflagged/fire, TP=flagged/fire.
-BASELINE_CONFUSION_COSTS = {"tn": 0, "fp": 1, "fn": 1_000, "tp": 50}
+BASELINE_CONFUSION_COSTS = {"tn": 0, "fp": 1, "fn": 750, "tp": 50}
 BASELINE_COEFFICIENTS_PATH = BASELINE_OUTPUTS_DIR / "baseline_coefficients.csv"
 BASELINE_PERFORMANCE_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.csv"
 BASELINE_ROC_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.png"

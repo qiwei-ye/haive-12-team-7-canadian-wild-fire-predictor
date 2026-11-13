@@ -72,7 +72,7 @@ class BaselineModelTests(unittest.TestCase):
         self.assertEqual(metrics["roc_auc"], .5)
         self.assertEqual(metrics["precision"], .5)
         self.assertEqual(metrics["recall"], .5)
-        self.assertEqual(metrics["total_cost"], 1051)
+        self.assertEqual(metrics["total_cost"], 801)
         self.assertIsNotNone(curve)
         imbalanced, _ = baseline.partition_performance(np.array([0, 0, 0, 1]), [.1, .9, .2, .8], "test", .5)
         self.assertEqual(imbalanced["precision"], .5)
@@ -85,7 +85,7 @@ class BaselineModelTests(unittest.TestCase):
             baseline.fit_logistic_regression(np.arange(12).reshape(6, 2), [0, 0, 0, 0, 0, 1])
 
     def test_training_threshold_matches_brute_force_including_tied_scores_and_tp_cost(self):
-        self.assertEqual(config.BASELINE_CONFUSION_COSTS, {"tn": 0, "fp": 1, "fn": 1000, "tp": 50})
+        self.assertEqual(config.BASELINE_CONFUSION_COSTS, {"tn": 0, "fp": 1, "fn": 750, "tp": 50})
         rng = np.random.default_rng(config.RANDOM_SEED)
         target = rng.binomial(1, .2, size=100)
         probabilities = np.round(rng.uniform(size=100), 1)
@@ -141,7 +141,7 @@ class BaselineModelTests(unittest.TestCase):
                 cv = json.loads(row.cv_auc_by_C)
                 self.assertEqual(len(cv), 2)
                 self.assertEqual(len(cv[0]["fold_roc_auc"]), 5)
-                self.assertEqual(row.total_cost, row.fp + 50 * row.tp + 1000 * row.fn)
+                self.assertEqual(row.total_cost, row.fp + 50 * row.tp + 750 * row.fn)
             self.assertTrue((output / config.BASELINE_COEFFICIENTS_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_PERFORMANCE_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_ROC_PATH.name).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))

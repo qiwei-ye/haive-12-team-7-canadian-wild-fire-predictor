@@ -156,11 +156,848 @@
     "CWFIS"
   ],
   "fire_reporting_date_range": [
-    "2018-09-01",
+    "2017-09-01",
     "2026-08-31"
   ],
-  "retained_fire_records": 45314,
+  "retained_fire_records": 52444,
   "excluded_fire_records": [
+    {
+      "fire_id": "2017_NB_THOMPSONCORNER",
+      "latitude": 45.646,
+      "longitude": -67.1521,
+      "report_date": "2017-09-01",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_INKERMAN",
+      "latitude": 47.6739,
+      "longitude": -64.8203,
+      "report_date": "2017-09-15",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_FEUINKERMANFERRY",
+      "latitude": 47.6739,
+      "longitude": -64.8203,
+      "report_date": "2017-09-16",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_PIGEONHILL",
+      "latitude": 47.8893,
+      "longitude": -64.5039,
+      "report_date": "2017-09-16",
+      "size_ha": "0.4",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_POINTECANOT",
+      "latitude": 47.8377,
+      "longitude": -64.6963,
+      "report_date": "2017-09-25",
+      "size_ha": "0.8",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NS_03-009-2017",
+      "latitude": 43.7891,
+      "longitude": -64.9294,
+      "report_date": "2017-09-25",
+      "size_ha": "0.01",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_FEULEECH",
+      "latitude": 47.4526,
+      "longitude": -65.0,
+      "report_date": "2017-09-27",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_MURRAYRD",
+      "latitude": 45.654,
+      "longitude": -67.0929,
+      "report_date": "2017-09-27",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NL_144",
+      "latitude": 48.1,
+      "longitude": -52.98,
+      "report_date": "2017-09-28",
+      "size_ha": "1.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_HARTINSETTLEMENTLAKE",
+      "latitude": 45.919,
+      "longitude": -67.6198,
+      "report_date": "2017-09-29",
+      "size_ha": "1.4",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_TWEEDSIDECREEK",
+      "latitude": 45.6844,
+      "longitude": -67.0158,
+      "report_date": "2017-10-06",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_ON_FOR_FIRE_016",
+      "latitude": 48.64,
+      "longitude": -93.19,
+      "report_date": "2017-10-11",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_DESYLVA",
+      "latitude": 47.7655,
+      "longitude": -64.6624,
+      "report_date": "2017-10-13",
+      "size_ha": "0.3",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_HAUT-LAM\u00c8QUE",
+      "latitude": 47.7584,
+      "longitude": -64.6385,
+      "report_date": "2017-10-14",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_ON_FOR_FIRE_018",
+      "latitude": 48.928,
+      "longitude": -93.925,
+      "report_date": "2017-10-18",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_ON_FOR_FIRE_019",
+      "latitude": 48.979,
+      "longitude": -93.922,
+      "report_date": "2017-10-18",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_ON_FOR_FIRE_020",
+      "latitude": 48.657,
+      "longitude": -93.218,
+      "report_date": "2017-10-18",
+      "size_ha": "1.6",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_LINE",
+      "latitude": 45.2158,
+      "longitude": -67.3272,
+      "report_date": "2017-10-21",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_QC_FEU310",
+      "latitude": 45.938,
+      "longitude": -70.907,
+      "report_date": "2017-10-22",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_HAUT-LAM\u00c8QUE2",
+      "latitude": 47.7689,
+      "longitude": -64.6345,
+      "report_date": "2017-10-23",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_CLEALANDRD",
+      "latitude": 45.2178,
+      "longitude": -67.2541,
+      "report_date": "2017-10-24",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_HAUTST-SIMON",
+      "latitude": 47.7292,
+      "longitude": -64.8194,
+      "report_date": "2017-10-24",
+      "size_ha": "0.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_EVANG\u00c9LINEPEATMOSS",
+      "latitude": 47.7202,
+      "longitude": -64.817,
+      "report_date": "2017-10-27",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_SUNGRONIGHT",
+      "latitude": 47.7641,
+      "longitude": -64.6632,
+      "report_date": "2017-10-28",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2017_NB_CHEMINV\u00c9T\u00c9RANS",
+      "latitude": 47.832,
+      "longitude": -64.56,
+      "report_date": "2017-10-31",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_770MEADOW",
+      "latitude": 45.2977,
+      "longitude": -67.099,
+      "report_date": "2018-04-25",
+      "size_ha": "6.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CLOVERLEAF",
+      "latitude": 45.9594,
+      "longitude": -67.2455,
+      "report_date": "2018-04-25",
+      "size_ha": "1.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_LEDGERDFIRE",
+      "latitude": 45.1739,
+      "longitude": -67.197,
+      "report_date": "2018-04-25",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_16-001-2018",
+      "latitude": 46.3616,
+      "longitude": -61.0874,
+      "report_date": "2018-04-25",
+      "size_ha": "1.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V10073",
+      "latitude": 53.2186,
+      "longitude": -131.7946,
+      "report_date": "2018-04-29",
+      "size_ha": "7.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V10100",
+      "latitude": 53.2905,
+      "longitude": -131.9695,
+      "report_date": "2018-05-03",
+      "size_ha": "0.009",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_SLATER",
+      "latitude": 45.9364,
+      "longitude": -67.7067,
+      "report_date": "2018-05-03",
+      "size_ha": "0.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINHOLMES",
+      "latitude": 47.4094,
+      "longitude": -64.9767,
+      "report_date": "2018-05-05",
+      "size_ha": "2.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_003",
+      "latitude": 48.693,
+      "longitude": -93.956,
+      "report_date": "2018-05-07",
+      "size_ha": "12.9",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINDELACEDRIERE",
+      "latitude": 47.4134,
+      "longitude": -64.9261,
+      "report_date": "2018-05-09",
+      "size_ha": "1.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEUSHEILA",
+      "latitude": 47.4804,
+      "longitude": -64.9186,
+      "report_date": "2018-05-09",
+      "size_ha": "0.9",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NL_501",
+      "latitude": 47.9,
+      "longitude": -59.07,
+      "report_date": "2018-05-09",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_POINTECANEAU",
+      "latitude": 47.8436,
+      "longitude": -64.6878,
+      "report_date": "2018-05-11",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_POINTECANOT",
+      "latitude": 47.8436,
+      "longitude": -64.6878,
+      "report_date": "2018-05-11",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_004",
+      "latitude": 48.853,
+      "longitude": -93.582,
+      "report_date": "2018-05-11",
+      "size_ha": "3.3",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINPALLOT",
+      "latitude": 47.6504,
+      "longitude": -64.8429,
+      "report_date": "2018-05-13",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINPALLOT2",
+      "latitude": 47.6239,
+      "longitude": -64.8706,
+      "report_date": "2018-05-13",
+      "size_ha": "0.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEUSONIEROUEST",
+      "latitude": 47.5015,
+      "longitude": -64.9298,
+      "report_date": "2018-05-14",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_QC_FEU100",
+      "latitude": 45.93,
+      "longitude": -70.48,
+      "report_date": "2018-05-16",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_007",
+      "latitude": 48.788,
+      "longitude": -93.104,
+      "report_date": "2018-05-17",
+      "size_ha": "0.8",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_09-003-2018",
+      "latitude": 44.7875,
+      "longitude": -62.958,
+      "report_date": "2018-05-19",
+      "size_ha": "0.01",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_15-023-2018",
+      "latitude": 46.1646,
+      "longitude": -59.9626,
+      "report_date": "2018-05-19",
+      "size_ha": "4.9",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V10269",
+      "latitude": 53.2905,
+      "longitude": -131.9695,
+      "report_date": "2018-05-20",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_UPPERWAWEIGRD",
+      "latitude": 45.2335,
+      "longitude": -67.1212,
+      "report_date": "2018-05-20",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_COUNTYLINE",
+      "latitude": 45.4811,
+      "longitude": -67.3195,
+      "report_date": "2018-05-21",
+      "size_ha": "1.8",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_PLAINSFIRE",
+      "latitude": 47.0066,
+      "longitude": -64.8712,
+      "report_date": "2018-05-21",
+      "size_ha": "0.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEURUEDESMARINS",
+      "latitude": 47.8091,
+      "longitude": -64.6381,
+      "report_date": "2018-05-22",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_DODGE",
+      "latitude": 45.21,
+      "longitude": -67.2483,
+      "report_date": "2018-05-23",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_TROUTCOVE",
+      "latitude": 45.8008,
+      "longitude": -67.773,
+      "report_date": "2018-05-23",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_VALLEYROAD",
+      "latitude": 45.2112,
+      "longitude": -67.2578,
+      "report_date": "2018-05-23",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINPALLOTINKERMAN",
+      "latitude": 47.6469,
+      "longitude": -64.8466,
+      "report_date": "2018-05-25",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_15-025-2018",
+      "latitude": 46.242,
+      "longitude": -61.314,
+      "report_date": "2018-05-25",
+      "size_ha": "0.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NL_142",
+      "latitude": 46.88,
+      "longitude": -55.92,
+      "report_date": "2018-05-31",
+      "size_ha": "4.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_CHEMINDESANCETRES",
+      "latitude": 47.7301,
+      "longitude": -64.827,
+      "report_date": "2018-06-01",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_011",
+      "latitude": 48.928,
+      "longitude": -93.925,
+      "report_date": "2018-06-03",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEUDEPILE",
+      "latitude": 47.4443,
+      "longitude": -64.9814,
+      "report_date": "2018-06-06",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_KRYSTALKLEAR",
+      "latitude": 45.2228,
+      "longitude": -67.1675,
+      "report_date": "2018-06-10",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_LANDRYOFFICE",
+      "latitude": 47.714,
+      "longitude": -64.9681,
+      "report_date": "2018-06-12",
+      "size_ha": "0.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEUHAUTST-SIMON",
+      "latitude": 47.7204,
+      "longitude": -64.84,
+      "report_date": "2018-06-14",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_PEATMOSS1",
+      "latitude": 47.0236,
+      "longitude": -64.9185,
+      "report_date": "2018-06-16",
+      "size_ha": "0.8",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V90554",
+      "latitude": 50.636,
+      "longitude": -128.0718,
+      "report_date": "2018-06-18",
+      "size_ha": "0.009",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-G60827",
+      "latitude": 48.0,
+      "longitude": -140.0,
+      "report_date": "2018-06-22",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "outside_canadian_boundary"
+    },
+    {
+      "fire_id": "2018_BC_2018-G60828",
+      "latitude": 48.0,
+      "longitude": -140.0,
+      "report_date": "2018-06-22",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "outside_canadian_boundary"
+    },
+    {
+      "fire_id": "2018_NB_FEUPOKESHUDIE",
+      "latitude": 47.7822,
+      "longitude": -64.7522,
+      "report_date": "2018-06-26",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_ROUTE350",
+      "latitude": 47.684,
+      "longitude": -64.9209,
+      "report_date": "2018-06-26",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_QC_FEU290",
+      "latitude": 46.804,
+      "longitude": -69.929,
+      "report_date": "2018-06-27",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_BEECHFIRE",
+      "latitude": 47.7796,
+      "longitude": -64.5674,
+      "report_date": "2018-06-29",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_RUEDELAMER",
+      "latitude": 47.8041,
+      "longitude": -64.5563,
+      "report_date": "2018-06-30",
+      "size_ha": "3.5",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_09-008-2018",
+      "latitude": 44.9291,
+      "longitude": -62.2871,
+      "report_date": "2018-07-02",
+      "size_ha": "0.02",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_INKERMANFERRY",
+      "latitude": 47.6772,
+      "longitude": -64.8144,
+      "report_date": "2018-07-05",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NL_155",
+      "latitude": 48.1,
+      "longitude": -52.97,
+      "report_date": "2018-07-06",
+      "size_ha": "153.4",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NS_16-004-2018",
+      "latitude": 46.1466,
+      "longitude": -61.2787,
+      "report_date": "2018-07-10",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_NORTHLAKE",
+      "latitude": 45.8029,
+      "longitude": -67.7455,
+      "report_date": "2018-07-12",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_LITTLEENGLISH",
+      "latitude": 45.739,
+      "longitude": -67.7563,
+      "report_date": "2018-07-17",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V11388",
+      "latitude": 53.3512,
+      "longitude": -131.9566,
+      "report_date": "2018-07-21",
+      "size_ha": "0.009",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_UPPERSKIFFLAKERD",
+      "latitude": 45.8764,
+      "longitude": -67.5101,
+      "report_date": "2018-07-26",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_NB_FEUBOUCHERIE",
+      "latitude": 47.5604,
+      "longitude": -64.9641,
+      "report_date": "2018-07-29",
+      "size_ha": "1.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_023",
+      "latitude": 48.918,
+      "longitude": -93.607,
+      "report_date": "2018-07-29",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-R21754",
+      "latitude": 48.0,
+      "longitude": -140.0,
+      "report_date": "2018-07-31",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "outside_canadian_boundary"
+    },
+    {
+      "fire_id": "2018_BC_2018-N62569",
+      "latitude": 48.9699,
+      "longitude": -118.7803,
+      "report_date": "2018-08-12",
+      "size_ha": "19.6",
+      "is_large_fire": "0",
+      "exclusion_reason": "outside_canadian_boundary"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_050",
+      "latitude": 48.923,
+      "longitude": -93.65,
+      "report_date": "2018-08-12",
+      "size_ha": "0.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_052",
+      "latitude": 48.89,
+      "longitude": -93.489,
+      "report_date": "2018-08-14",
+      "size_ha": "1.6",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V92672",
+      "latitude": 50.5213,
+      "longitude": -128.1351,
+      "report_date": "2018-08-15",
+      "size_ha": "0.009",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_055",
+      "latitude": 48.703,
+      "longitude": -93.085,
+      "report_date": "2018-08-15",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_059",
+      "latitude": 48.955,
+      "longitude": -93.806,
+      "report_date": "2018-08-18",
+      "size_ha": "0.2",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_060",
+      "latitude": 48.88,
+      "longitude": -93.442,
+      "report_date": "2018-08-19",
+      "size_ha": "0.1",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_ON_FOR_FIRE_065",
+      "latitude": 48.809,
+      "longitude": -93.208,
+      "report_date": "2018-08-22",
+      "size_ha": "0.4",
+      "is_large_fire": "0",
+      "exclusion_reason": "containing_cell_not_in_retained_grid"
+    },
+    {
+      "fire_id": "2018_BC_2018-V02962",
+      "latitude": 48.0,
+      "longitude": -140.0,
+      "report_date": "2018-08-29",
+      "size_ha": "0.0",
+      "is_large_fire": "0",
+      "exclusion_reason": "outside_canadian_boundary"
+    },
     {
       "fire_id": "2018_NB_SCOTTSCANADAPEATMOSS",
       "latitude": 47.8472,
@@ -5771,9 +6608,9 @@
   },
   "definitions": {
     "tas": "Missing historical daily tas uses the same-cell mean of originally available observations in [t-3, t+3] calendar days; observed values are unchanged; no iterative filling; windows without observations remain missing. The centered window uses future days and can cross temporal partition boundaries.",
-    "previous_large_fire": "1 if a known large fire occurred in this cell in [2 calendar years before the row date, row date); otherwise 0",
-    "previous_large_fire_neighbour": "1 if a known large fire occurred in a retained surrounding cell in [2 calendar years before the row date, row date); otherwise 0",
-    "previous_small_fire_neighbour": "1 if a known non-large fire occurred in a retained surrounding cell in [2 calendar years before the row date, row date); otherwise 0; unknown sizes do not count",
+    "previous_large_fire": "1 if a known large fire occurred in this cell in [3 calendar years before the row date, 1 calendar year(s) before the row date); otherwise 0",
+    "previous_large_fire_neighbour": "1 if a known large fire occurred in a retained surrounding cell in [3 calendar years before the row date, 1 calendar year(s) before the row date); otherwise 0",
+    "previous_small_fire_neighbour": "1 if a known non-large fire occurred in a retained surrounding cell in [3 calendar years before the row date, 1 calendar year(s) before the row date); otherwise 0; unknown sizes do not count",
     "30_day_pr": "sum of pr over 30 consecutive calendar days ending on and including the row date; missing if any required observation is unavailable",
     "7_day_min_avg_tas": "min of tas over 7 consecutive calendar days ending on and including the row date; missing if any required observation is unavailable",
     "neighbour_offsets": [
@@ -5813,8 +6650,8 @@
     "is_large_fire": "1 if any reported fire in this cell on this processed fire date is >= 1000 ha; otherwise 0, including missing indicators and unknown reported fire sizes",
     "missing_values": "Missing is_large_fire indicators are replaced with 0; historical tas uses the configured centered mean fill before weather features; other missing predictor values remain unknown",
     "fire_date": "CWFIS situation report dates, except exact-ID-matched January 1 NWT 2026 placeholders use NWT estimated start dates; unmatched January 1 dates remain unchanged",
-    "fire_history_coverage": "Available CWFIS reports from 2018-09-01; missing historical reporting does not establish absence",
-    "omitted_date_history": "Fire reports on omitted CSV dates still contribute to strictly later fire-history indicators",
+    "fire_history_coverage": "Available CWFIS reports from 2017-09-01; missing historical reporting does not establish absence",
+    "omitted_date_history": "Fire reports on omitted CSV dates still contribute when they fall inside a later row's lagged history window",
     "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated"
   },
   "merged_netcdf": {

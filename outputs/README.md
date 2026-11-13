@@ -4,6 +4,18 @@
 for all models. Regression outputs for the WoE logistic baseline are stored in
 `baseline/`.
 
+Fire-history predictors use `[row date - 3 calendar years, row date - 1 calendar year)`:
+the lower date is included and the upper date excluded. After changing this feature
+definition, rebuild the affected data and refit every supervised stage in order:
+
+```powershell
+.venv/Scripts/python.exe run_pipeline.py preprocess --only fire
+.venv/Scripts/python.exe run_pipeline.py merge
+.venv/Scripts/python.exe -m src.baseline
+.venv/Scripts/python.exe -m src.variable_selection
+.venv/Scripts/python.exe -m src.baseline --fit
+```
+
 ## Predictor binning
 
 Run from the project root after installing `requirements.txt`:
@@ -109,9 +121,9 @@ final model's **training predictions**, using `BASELINE_CONFUSION_COSTS`:
 | Actual cell-day outcome | Unflagged | Flagged |
 | --- | ---: | ---: |
 | No large fire | 0 (TN) | 1 (FP) |
-| Large fire | 1,000 (FN) | 50 (TP) |
+| Large fire | 750 (FN) | 50 (TP) |
 
-Thus total cost is `FP + 50*TP + 1000*FN`; correctly flagged fires still incur cost.
+Thus total cost is `FP + 50*TP + 750*FN`; correctly flagged fires still incur cost.
 The search evaluates every distinct probability cutoff, keeps equal probabilities
 together under `probability >= threshold`, and includes flagging no rows or all
 rows. Equal costs favour the highest threshold (fewest flags). The same chosen
