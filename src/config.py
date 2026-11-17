@@ -21,6 +21,8 @@ INPUT_DATA_DIR = DATA_DIR / "inputs"
 CLEAN_MERGED_FILENAME = "merged.nc"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 BASELINE_OUTPUTS_DIR = OUTPUTS_DIR / "baseline"
+RANDOM_FOREST_OUTPUTS_DIR = OUTPUTS_DIR / "randomforest"
+XGBOOST_OUTPUTS_DIR = OUTPUTS_DIR / "xgboost"
 
 RANDOM_SEED = 42
 TRAIN_FRACTION = 0.8
@@ -185,3 +187,35 @@ BASELINE_COEFFICIENTS_PATH = BASELINE_OUTPUTS_DIR / "baseline_coefficients.csv"
 BASELINE_PERFORMANCE_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.csv"
 BASELINE_ROC_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.png"
 BASELINE_PROBABILITIES_PATH = BASELINE_OUTPUTS_DIR / "baseline_probabilities.nc"
+
+# Raw selected-feature tree models share the baseline CV folds and decision costs.
+# Parallelise trees within a fit; grid-search candidates/folds run sequentially.
+TREE_MODEL_N_JOBS = -1
+RANDOM_FOREST_PARAMETERS = {
+    "n_estimators": 300,
+    "bootstrap": True,
+    "max_samples": 0.8,
+    "criterion": "log_loss",
+}
+RANDOM_FOREST_PARAM_GRID = {
+    "max_depth": (5, 10, 15),
+    "max_features": (2, 3, 4),
+    "min_samples_leaf": (10, 50, 100),
+}
+# Boosting rounds are capped at 3,000, with training-only early stopping on log
+# loss. Each fold reserves VALIDATION_FRACTION of its training rows for stopping.
+XGBOOST_PARAMETERS = {
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "n_estimators": 3_000,
+    "early_stopping_rounds": 100,
+    "subsample": 0.8,
+    "tree_method": "hist",
+}
+XGBOOST_PARAM_GRID = {
+    "learning_rate": (0.03, 0.05, 0.10),
+    "max_depth": (2, 4, 6),
+    "min_child_weight": (1, 5, 10),
+    "colsample_bytree": (0.6, 0.8, 1.0),
+    "reg_lambda": (1, 10, 50),
+}

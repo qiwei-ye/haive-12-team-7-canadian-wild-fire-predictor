@@ -388,7 +388,8 @@ def run_classifier(input_path=None, binning_path=None, output_dir=None):
     return model, coefficients, performance
 
 
-def export_probabilities(input_path, partition_probabilities, output_path, metadata):
+def export_probabilities(input_path, partition_probabilities, output_path, metadata,
+                         title="WoE L2 logistic regression fitted cell-day probabilities"):
     """Save fitted probabilities on the input time/cell grid without predictors."""
     output_path = Path(output_path)
     if any(output_path.resolve().is_relative_to(path.resolve()) for path in
@@ -417,7 +418,7 @@ def export_probabilities(input_path, partition_probabilities, output_path, metad
              "partition": ("time", labels, dict(source.partition.attrs))},
             coords=coordinates,
             attrs={**attributes, **metadata,
-                   "title": "WoE L2 logistic regression fitted cell-day probabilities",
+                   "title": title,
                    "training_predictions": "In-sample probabilities from the final full-training model; not out-of-fold",
                    "heldout_predictions": "Validation and test probabilities from the same training-fitted model",
                    "probability_definition": f"Probability of {config.FIRE_OUTPUT_COLUMNS[-1]}=1; large fire area >= {config.LARGE_FIRE_THRESHOLD_HA} ha"})

@@ -2,7 +2,8 @@
 
 `binning.csv` and `variable_selection.csv` document shared predictor preparation
 for all models. Regression outputs for the WoE logistic baseline are stored in
-`baseline/`.
+`baseline/`. Raw selected-feature tree-model outputs are stored separately in
+`randomforest/` and `xgboost/` when those models are explicitly run.
 
 Fire-history predictors use `[row date - 3 calendar years, row date - 1 calendar year)`:
 the lower date is included and the upper date excluded. After changing this feature
@@ -167,3 +168,85 @@ The default regression output directory is `outputs/baseline/`. Use `--input`,
 `--binning`, and `--output-dir` with `--fit` for alternative paths.
 The implementation follows scikit-learn's
 [logistic regression API](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
+
+## Random forest and XGBoost
+
+These modules require `--fit` to train; importing either module or calling it
+without that flag does not fit a model or create outputs:
+
+```powershell
+.venv/Scripts/python.exe -m src.randomforest --fit
+.venv/Scripts/python.exe -m src.xgboost --fit
+```
+
+Both read only the selected predictors from `data/inputs/merged.nc`. They do not
+read `binning.csv`, refit bins, or use WoE. Numerical and binary predictors retain
+their values, represented as float32 for the tree libraries. Nominal land cover
+uses one-hot encoding fitted inside each training CV fold and then refitted on
+the complete training partition. An unseen heldout category has all-zero dummy
+columns; heldout categories never expand the training schema. Missing/infinite
+predictors stop the run instead of being filled or silently dropped. Identifiers,
+coordinates, partition labels, and the target are never predictors.
+
+Random forest uses 300 trees, bootstrap sampling with replacement, a sample-draw
+fraction of 0.8, and `criterion="log_loss"`. Each CV tree draws from its own fold's
+training rows; the final forest draws from all training rows. The fraction counts
+draws, not unique rows. The full grid is `max_depth=(5, 10, 15)`,
+`max_features=(2, 3, 4)`, and `min_samples_leaf=(10, 50, 100)`: **27 candidates,
+135 CV fits, and one final full-training fit**. `max_features` counts columns after
+one-hot encoding. Original-variable importance sums the dummy-column importances.
+
+XGBoost uses `objective="binary:logistic"`, `eval_metric="logloss"`, at most 3,000
+boosting rounds, early-stopping patience of 100 rounds, `subsample=0.8`, and
+`tree_method="hist"`. Its grid is `learning_rate=(0.03, 0.05, 0.10)`,
+`max_depth=(2, 4, 6)`, `min_child_weight=(1, 5, 10)`,
+`colsample_bytree=(0.6, 0.8, 1.0)`, and `reg_lambda=(1, 10, 50)`:
+**243 candidates and 1,215 CV fits**, followed by one full-training refit.
+
+Inside each outer CV training fold, XGBoost reserves the configured
+`VALIDATION_FRACTION` (20%) as a stratified early-stopping subset, with seed
+`RANDOM_SEED`. Encoding is fitted on the remaining fitting rows only. The outer
+scoring fold never supplies an early-stopping signal. Each candidate stops on
+log loss and is scored on the untouched outer fold using exactly
+`best_iteration + 1` rounds. Mean outer-fold **log loss** selects the candidate;
+fold and mean/std ROC-AUC are also recorded. The selected candidate's median best
+round count, rounded up if necessary, determines the final boosting-round count.
+The final encoder and model are then fitted on all training rows, with that fixed
+count and early stopping disabled because no training rows are withheld from the
+final fit. The dated validation/test partitions do not determine this count.
+
+Neither model applies automatic class weighting, class resampling, or numerical
+standardization. The configured forest bootstrap and XGBoost row/column subsampling
+remain part of their respective algorithms.
+
+Both reuse `RANDOM_SEED`, `BASELINE_CV_FOLDS`, and `BASELINE_CONFUSION_COSTS` from
+`src/config.py`. Five shuffled stratified folds are created only from training
+rows; every candidate uses the same seeded folds. Mean training-CV ROC-AUC selects
+the forest configuration; mean training-CV log loss selects XGBoost. Exact ties
+favour the first grid entry. Estimators receive
+the same configured seed for every candidate/fold; no additional seeds are drawn
+by our code. Random forest derives its per-tree seeds internally. Candidates/folds
+run sequentially; trees use `TREE_MODEL_N_JOBS` to avoid nested parallel searches.
+
+After the final training fit, its in-sample training probabilities determine the
+minimum-cost flag threshold under the existing FP/TP/TN/FN costs. That single
+threshold is applied to training, validation, and test, with ROC threshold markers
+and the same metrics as the logistic baseline. Validation/test outcomes do not
+influence tuning, encoding, fitting, or threshold selection. Variable selection
+is fixed from full training before CV; these shuffled folds measure performance
+conditional on that selection, rather than forward-in-time performance.
+
+When run, each model writes the following files under its own output directory,
+using `randomforest_` or `xgboost_` as the filename prefix:
+
+| Filename suffix | Contents |
+| --- | --- |
+| `cv_results.csv` | Candidate parameters, per-fold and mean/std ROC-AUC, rank, chosen candidate, and training coverage. XGBoost also records log loss, each fold's best round count, stopping settings, and the full-training refit round count. |
+| `feature_importances.csv` | Original selected-variable importances, aggregating one-hot columns; forest impurity decrease or XGBoost normalized gain. |
+| `performance.csv` | Training/validation/test confusion counts, ROC-AUC, log loss, precision/recall/specificity/F1/accuracy, threshold, costs, and model/CV metadata. |
+| `performance.png` | Partition ROC curves with the training-selected threshold marked. |
+| `probabilities.nc` | Fitted cell-day probabilities and partition labels on the original input coordinates; training predictions are in-sample. |
+
+Use `--input` and `--output-dir` to override the configured locations. All training
+settings are in `src/config.py`; source data and shared selection outputs remain
+unchanged.
