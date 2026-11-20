@@ -171,8 +171,24 @@ The implementation follows scikit-learn's
 
 ## Random forest and XGBoost
 
-These modules require `--fit` to train; importing either module or calling it
-without that flag does not fit a model or create outputs:
+The pipeline runs both ensembles sequentially on the existing selected
+`data/inputs/merged.nc`:
+
+```powershell
+.venv/Scripts/python.exe run_pipeline.py train
+```
+
+Use `train --model randomforest` or `train --model xgboost` to run one ensemble.
+`--input` selects an alternative selected-predictor NetCDF. `--output-dir` selects
+a parent output directory, with `randomforest/` and `xgboost/` subdirectories;
+without that option, the model-specific configuration paths are used. Training
+uses the existing input partitions and model settings. Prepare missing inputs
+with `python -m src.variable_selection`. The command returns a nonzero exit code
+on failure and stops before starting the next ensemble.
+
+The standalone module commands also remain available and require `--fit`.
+Importing a module, displaying pipeline help, or running a standalone module
+without that flag leaves training unstarted:
 
 ```powershell
 .venv/Scripts/python.exe -m src.randomforest --fit

@@ -1,9 +1,12 @@
-"""Run data preprocessing and daily historical merging; no model training.
+"""Run data preprocessing, historical merging, and tree-ensemble training.
 
 Usage: .venv/Scripts/python.exe run_pipeline.py preprocess [--only climate|geological]
        .venv/Scripts/python.exe run_pipeline.py preprocess --only fire
        .venv/Scripts/python.exe run_pipeline.py merge
        .venv/Scripts/python.exe run_pipeline.py merge --netcdf-only
+       .venv/Scripts/python.exe run_pipeline.py train
+       .venv/Scripts/python.exe run_pipeline.py train --model randomforest
+       .venv/Scripts/python.exe run_pipeline.py train --model xgboost
 
 Outputs are NetCDF files under data/processed/climate/<source>/<split>/ and
 data/processed/static/<source>/. grid.nc stores the common Canadian cell centres;
@@ -40,9 +43,17 @@ Only ORRC climate, elevation, land cover, earlier fire history, and CWFIS target
 are included. Missing predictors remain blank; missing target indicators use 0.
 Zero targets mean no reported
 large fire, not verified absence; merge_summary.json documents coverage/exclusions.
+
+Train reads existing selected predictors from data/inputs/merged.nc. By default
+it runs Random Forest followed by XGBoost, using their configured training-only
+CV, cost threshold, and evaluation/export logic. --model selects one ensemble.
+Default outputs use the model directories in src/config.py; --output-dir selects
+a parent directory containing randomforest/ and xgboost/ subdirectories. Prepare
+selected inputs with python -m src.variable_selection before training.
 """
 
 import argparse
+import importlib
 import logging
 from pathlib import Path
 
@@ -63,6 +74,13 @@ def main(argv=None):
     merge.add_argument("--output-dir", type=Path, default=config.CLEAN_DATA_DIR)
     merge.add_argument("--boundary", type=Path, default=config.ECODISTRICTS_PATH)
     merge.add_argument("--netcdf-only", action="store_true", help="Combine existing daily CSVs into merged.nc only")
+    train = commands.add_parser("train", help="Fit and evaluate Random Forest and/or XGBoost on selected inputs")
+    train.add_argument("--model", choices=("all", "randomforest", "xgboost"), default="all",
+                       help="Default 'all' runs Random Forest then XGBoost sequentially")
+    train.add_argument("--input", type=Path, default=config.INPUT_DATA_DIR / config.CLEAN_MERGED_FILENAME,
+                       help="Selected predictor NetCDF, including targets and temporal partitions")
+    train.add_argument("--output-dir", type=Path,
+                       help="Parent output directory; each model gets its own subdirectory (defaults to config paths)")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
@@ -70,11 +88,35 @@ def main(argv=None):
         for name, (start_date, end_date) in config.TIME_WINDOWS.items():
             print(f"{name}: {start_date} to {end_date}")
         return 0
-    if args.output_dir.resolve().is_relative_to(config.RAW_DATA_DIR.resolve()):
+    if args.output_dir is not None and args.output_dir.resolve().is_relative_to(config.RAW_DATA_DIR.resolve()):
         parser.error("--output-dir must not be inside the raw input directory")
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     logger = logging.getLogger(__name__)
+    if args.command == "train":
+        destinations = {"randomforest": config.RANDOM_FOREST_OUTPUTS_DIR,
+                        "xgboost": config.XGBOOST_OUTPUTS_DIR}
+        names = list(destinations) if args.model == "all" else [args.model]
+        if args.output_dir is not None:
+            destinations = {name: args.output_dir / name for name in names}
+        for name in names:
+            output = destinations[name]
+            if any(output.resolve().is_relative_to(path.resolve()) for path in
+                   (config.RAW_DATA_DIR, config.PROCESSED_DATA_DIR, config.CLEAN_DATA_DIR, config.INPUT_DATA_DIR)):
+                parser.error("Tree-model outputs must be separate from raw, processed, clean, and input data")
+        if not args.input.is_file():
+            logger.error("Selected model input missing: %s; prepare inputs with python -m src.variable_selection", args.input)
+            return 1
+        for name in names:
+            try:
+                module = importlib.import_module(f"src.{name}")
+                logger.info("Starting %s: selected inputs %s; outputs %s", name, args.input, destinations[name])
+                module.run_classifier(input_path=args.input, output_dir=destinations[name])
+            except (ImportError, ValueError, OSError) as error:
+                logger.error("%s training failed: %s", name, error)
+                return 1
+        logger.info("Finished training: %s", ", ".join(names))
+        return 0
     if args.command == "merge":
         from src import data_merge
         try:
