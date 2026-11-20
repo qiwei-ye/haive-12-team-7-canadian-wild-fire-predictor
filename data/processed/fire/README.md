@@ -19,10 +19,10 @@ The current output has 24 missing areas and corresponding missing indicators;
 IDs, coordinates, and dates are complete. Among corrected NWT dates, 288 events
 remain in the historical window; two September 2026 events are excluded. Two
 unmatched January 1, 2019 Alberta records and two January 1, 2023 Alberta records
-remain unresolved. The 2017 through 2019 year-end snapshots extend available
-history for the first clean training dates. Fire-history features use
-`[row date - 3 calendar years, row date - 1 calendar year)`, with an inclusive lower
-and exclusive upper bound.
+remain unresolved. The 2018 and 2019 snapshots provide context for the first
+clean training dates. Fire-size features use `[t-90 days, t)` and
+`[t-2 calendar years, t-90 days)`, including each lower bound and excluding each
+upper bound.
 
 | Column | Definition | Unit/format |
 | --- | --- | --- |
@@ -35,7 +35,13 @@ and exclusive upper bound.
 
 Coordinates are geographic point locations; observations are kept per event
 without daily duplication or spatial aggregation. The clean merge applies the
-Canadian boundary and retained-grid checks, builds daily targets and preceding
-two-calendar-year large/small-fire history features, and
+Canadian boundary and retained-grid checks, builds daily targets and the two
+numerical fire-size features, and
 uses 0 for missing target indicators. NWT start dates are estimates; original
 NWT report dates are unavailable. No separate corrections CSV is generated.
+
+The clean merge derives `90_day_fire_size` and `2_year_90_day_fire_size`, summing
+stored areas across the centre cell and eight retained neighbours over their
+configured disjoint windows. Today is excluded from both. Each fire contributes
+once in hectares; an unknown area makes affected totals missing. Snapshot areas
+are used rather than daily growth or reconstructed as-of-date areas.

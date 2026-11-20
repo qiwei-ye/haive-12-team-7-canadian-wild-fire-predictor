@@ -6583,8 +6583,8 @@
     "sfcWind",
     "tas",
     "30_day_pr",
-    "previous_large_fire",
-    "previous_small_fire_neighbour",
+    "90_day_fire_size",
+    "2_year_90_day_fire_size",
     "is_large_fire"
   ],
   "units": {
@@ -6597,13 +6597,15 @@
     "pr": "mm day-1",
     "sfcWind": "m s-1",
     "tas": "degC",
-    "30_day_pr": "mm"
+    "30_day_pr": "mm",
+    "90_day_fire_size": "ha",
+    "2_year_90_day_fire_size": "ha"
   },
   "definitions": {
     "tas": "Missing historical daily tas uses the same-cell mean of originally available observations in [t-3, t+3] calendar days; observed values are unchanged; no iterative filling; windows without observations remain missing. The centered window uses future days and can cross temporal partition boundaries.",
-    "previous_large_fire": "1 if a known large fire occurred in this cell in [3 calendar years before the row date, 1 calendar year(s) before the row date); otherwise 0",
-    "previous_small_fire_neighbour": "1 if a known non-large fire occurred in a retained surrounding cell in [3 calendar years before the row date, 1 calendar year(s) before the row date); otherwise 0; unknown sizes do not count",
     "30_day_pr": "sum of pr over 30 consecutive calendar days ending on and including the row date; missing if any required observation is unavailable",
+    "90_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 90 calendar days, row date); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
+    "2_year_90_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 2 calendar years, row date - 90 calendar days); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
     "neighbour_offsets": [
       [
         -1,
@@ -6642,7 +6644,7 @@
     "missing_values": "Missing is_large_fire indicators are replaced with 0; historical tas uses the configured centered mean fill before weather features; other missing predictor values remain unknown",
     "fire_date": "CWFIS situation report dates, except exact-ID-matched January 1 NWT 2026 placeholders use NWT estimated start dates; unmatched January 1 dates remain unchanged",
     "fire_history_coverage": "Available CWFIS reports from 2017-09-01; missing historical reporting does not establish absence",
-    "omitted_date_history": "Fire reports on omitted CSV dates still contribute when they fall inside a later row's lagged history window",
+    "omitted_date_history": "Fire reports on omitted CSV dates still contribute when they fall inside a later row's configured fire-area windows",
     "cell_assignment": "Containing regular grid cell; outside-boundary or unretained-cell records excluded, never relocated"
   },
   "merged_netcdf": {
@@ -6667,17 +6669,17 @@
   "variable_selection": {
     "method": "Descending training IV; reject when absolute Pearson correlation with an earlier retained predictor exceeds threshold",
     "correlation_threshold": 0.6,
-    "correlation_data": "Raw training predictors; binary flags included; nominal predictors exempt",
+    "correlation_data": "Raw training numerical predictors; nominal predictors exempt",
     "nominal_predictors": [
       "landcover"
     ],
     "selected_predictors": [
       "tas",
+      "90_day_fire_size",
       "hurs",
-      "previous_small_fire_neighbour",
+      "2_year_90_day_fire_size",
       "MIN_ELEV",
       "landcover",
-      "previous_large_fire",
       "sfcWind",
       "MAX_ELEV",
       "pr",
@@ -6686,7 +6688,6 @@
     "dropped_predictors": [
       "7_day_min_avg_tas",
       "MEAN_ELEV",
-      "previous_large_fire_neighbour",
       "ELEVDIFF"
     ],
     "fit_partition": "training",

@@ -82,26 +82,34 @@ cloning; if these files contain pointers instead of NetCDF data, run
 | `hurs`, `pr`, `sfcWind`, `tas` | Historical ORRC predictors, retaining the processed units in configuration. Missing daily `tas` uses the centered mean rule below. |
 | `MIN_ELEV`, `MAX_ELEV`, `MEAN_ELEV`, `ELEVDIFF` | Processed ecodistrict elevation attributes, in metres. |
 | `landcover` | Modal 2020 land-cover category code; categorical, without interpolation. |
-| `previous_large_fire` | 1 if a known fire >= 1,000 ha occurred in this cell in the two-year history window ending one calendar year before the row date; otherwise 0. |
-| `previous_large_fire_neighbour` | 1 if a known fire >= 1,000 ha occurred in any of the eight retained side- or corner-sharing cells in that lagged window; otherwise 0. The current cell is excluded. |
-| `previous_small_fire_neighbour` | 1 if a known fire < 1,000 ha occurred in any of those eight surrounding cells in that lagged window; otherwise 0. Unknown sizes count as neither small nor large. |
+| `90_day_fire_size` | Reported fire area in ha across the centre cell and eight retained neighbours from `t-90` through `t-1`, inclusive; today is excluded. |
+| `2_year_90_day_fire_size` | Reported fire area in ha across the same neighbourhood from `t-2 calendar years` through `t-91`, inclusive. |
 | `30_day_pr` | Sum of daily `pr` over the current day and preceding 29 calendar days, in mm. |
 | `7_day_min_avg_tas` | Minimum daily average `tas` over the current day and preceding six calendar days, in degC. |
 | `is_large_fire` | 1 if at least one reported fire assigned to this cell/date meets the configured large-fire threshold; otherwise 0, including missing indicators and unknown reported fire sizes. |
 
-Fire-history windows are `[row date - 3 calendar years, row date - 1 calendar year)`:
-the lower anniversary date is included and the upper anniversary date is excluded.
-For 2026-06-10, qualifying dates are 2023-06-10 through 2025-06-09. The two-year
-duration and one-year lag come from `FIRE_HISTORY_YEARS` and `FIRE_HISTORY_LAG_YEARS`
-in configuration. The most recent year contributes no fire-history observations,
-allowing a full forecast year to use previously available reports. History carries
-across partition boundaries; the 2017-2019 snapshots supply context for the first
-training dates. Multiple fires in a cell
-on a day produce one target, with a known large fire taking precedence over an
-unknown size. Fire dates follow `FIRE_DATE_DEFINITION` in configuration, also saved
-in merge metadata and the NetCDF `fire_date_definition` attribute. Corrected dates
-apply to both the target and strictly earlier fire-history predictors.
-Reports on omitted CSV dates still contribute when they enter a later row's lagged window.
+Both fire-size predictors use a centred 3-by-3 neighbourhood: the current cell
+and up to eight retained Canadian neighbours. Excluded cells remain absent.
+`ROLLING_FIRE_FEATURES` in configuration defines two disjoint intervals:
+
+- `90_day_fire_size`: `[t-90 calendar days, t)`, including `t-90` and excluding today.
+- `2_year_90_day_fire_size`: `[t-2 calendar years, t-90 calendar days)`, ending at `t-91`.
+
+Calendar-year offsets handle leap days; the windows do not overlap or leave a gap.
+For the first training date, 2020-09-01, the recent interval is 2020-06-03 through
+2020-08-31 and the older interval is 2018-09-01 through 2020-06-02. Processed fire
+records cover both. Reports cross partition boundaries and omitted CSV dates
+remain eligible. Each fire contributes its stored area once, including small and
+large fires. An unknown area makes the affected feature total missing; no
+qualifying reports gives zero. Sizes come from CWFIS snapshots, without daily
+increments or reconstructed sizes known on the prediction date. Future feature
+construction requires fire observations covering the relevant windows.
+
+Multiple fires in a cell/day produce one target, with a known large fire taking
+precedence over an unknown size. `FIRE_DATE_DEFINITION` and the NetCDF
+`fire_date_definition` attribute document the dates used for both targets and
+fire-size features. Binary previous-fire predictors have been removed.
+
 Weather windows are calculated on consecutive daily climate observations before
 partitioning or omitting clean dates, so they cross split boundaries correctly.
 A rolling weather value is missing if any required daily observation is missing;
@@ -113,17 +121,19 @@ This centered fill uses future observations and can cross partition boundaries;
 those observations must be available when constructing the features.
 The four configured excluded dates remain omitted because humidity and wind are
 still unavailable. Their filled temperatures contribute to later seven-day minima.
-All current cleaned CSV and merged NetCDF columns are complete after this fill.
+Weather/static predictors, targets, and the older fire-size feature are complete.
+`90_day_fire_size` is complete in training and validation; 4,827 test cell-days
+have missing totals because of the 24 reports with unknown fire areas.
 Processed climate files retain their complete daily time coordinates, including
 the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 
 CWFIS operational reporting can have coverage gaps and source errors. Corrected
 NWT dates follow the agency's estimated start field, including its distinction
 from discovery dates. Unmatched dates remain unresolved. Zero targets mean
-**no reported large fire**, not verified absence. Zero history values
-mean **no qualifying fire in the available two-year history**, not no fire ever. Unknown fire
-sizes remain missing in the processed CWFIS source. Cleaned large-fire indicators
-use `0` for missing values. Missing climate/static predictors remain empty CSV
+**no reported large fire**, not verified absence. A zero fire-size feature means
+zero total reported area in its window, not verified absence of fire. Unknown
+fire sizes remain missing in the processed CWFIS source. Cleaned large-fire indicators
+use `0` for missing values. Missing predictors remain empty CSV
 fields; the centered historical `tas` fill is the sole predictor-imputation rule.
 
 Fire locations outside the Canadian boundary or within cells absent from the
@@ -144,7 +154,7 @@ The second command reuses the existing binning IVs and calculates raw predictor
 correlations on training rows only. In descending IV order, it rejects a predictor
 when its absolute Pearson correlation with an already retained predictor exceeds
 the configured 0.6 threshold. Nominal land cover is retained outside this filter;
-binary fire-history flags participate. Decisions, IVs, and the full correlation
+both fire-size predictors participate as numerical variables. Decisions, IVs, and the full correlation
 matrix are saved in `outputs/variable_selection.csv`.
 
 `data/inputs/` mirrors `data/clean/`: `training/`, `validation/`, and `test/`

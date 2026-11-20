@@ -47,12 +47,15 @@ class BinningTests(unittest.TestCase):
         self.assertTrue(np.isposinf(table.variable_iv.iloc[0]))
         self.assertTrue(table.regular_bins.eq(3).all())
 
-    def test_binary_flags_are_categorical_and_identifiers_are_excluded(self):
+    def test_fire_sizes_are_numerical_landcover_is_categorical_and_legacy_flags_are_excluded(self):
         types = baseline.predictor_types()
-        for name in ("landcover", *config.FIRE_HISTORY_VARIABLES):
-            self.assertEqual(types[name], "categorical")
-        self.assertEqual(sum(t == "numerical" for t in types.values()), 10)
-        for name in ("date", "time", "cell", "lat", "lon", "partition", "is_large_fire", "fuel_type"):
+        self.assertEqual(types["landcover"], "categorical")
+        for name in ("90_day_fire_size", "2_year_90_day_fire_size"):
+            self.assertEqual(types[name], "numerical")
+        self.assertEqual(sum(t == "numerical" for t in types.values()), 12)
+        for name in ("date", "time", "cell", "lat", "lon", "partition", "is_large_fire", "fuel_type",
+                     "previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
+                     "previous_fire_cumulative_size_90d"):
             self.assertNotIn(name, types)
 
     def test_invalid_inputs_fail_without_silently_reducing_bin_count(self):

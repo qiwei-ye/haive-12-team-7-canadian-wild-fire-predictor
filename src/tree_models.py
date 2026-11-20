@@ -2,7 +2,7 @@
 
 Only generic input/metric/export helpers are reused from baseline. No binning
 report is read and no bin or WoE transformation is performed. Land cover uses
-fold-fitted one-hot encoding; numerical and binary predictors pass through.
+fold-fitted one-hot encoding; numerical predictors pass through.
 """
 
 import json
@@ -207,7 +207,7 @@ def run_tree_classifier(model_name, fit_function, input_path, output_dir, import
     estimator = pipeline.named_steps["model"]
     common = {
         "model": model_name, "fit_partition": "training",
-        "encoding": "raw_numerical_and_binary; training_fitted_one_hot_nominal",
+        "encoding": "raw_numerical; training_fitted_one_hot_nominal",
         "selected_predictors": json.dumps(names),
         "target": config.FIRE_OUTPUT_COLUMNS[-1],
         "random_seed": config.RANDOM_SEED, "cv_folds": config.BASELINE_CV_FOLDS,

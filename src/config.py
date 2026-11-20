@@ -1,4 +1,4 @@
-"""Single source of project constants; all date bounds are inclusive.
+"""Single source of project constants; TIME_WINDOWS date bounds are inclusive.
 
 Keep configuration in this module and use ``config.CONSTANT_NAME`` in each
 source module. Paths are anchored to the project, regardless of the working
@@ -146,11 +146,11 @@ FIRE_NEIGHBOUR_OFFSETS = tuple(
     for column in (-1, 0, 1)
     if (row, column) != (0, 0)
 )
-FIRE_HISTORY_YEARS = 2
-FIRE_HISTORY_LAG_YEARS = 1
-FIRE_HISTORY_VARIABLES = (
-    "previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
-)
+FIRE_RECENT_WINDOW_DAYS = 90
+ROLLING_FIRE_FEATURES = {
+    "90_day_fire_size": {"lookback": {"days": FIRE_RECENT_WINDOW_DAYS}, "lag_days": 0, "units": "ha"},
+    "2_year_90_day_fire_size": {"lookback": {"years": 2}, "lag_days": FIRE_RECENT_WINDOW_DAYS, "units": "ha"},
+}
 ROLLING_WEATHER_FEATURES = {
     "30_day_pr": {"variable": "pr", "days": 30, "aggregation": "sum", "units": "mm"},
     "7_day_min_avg_tas": {"variable": "tas", "days": 7, "aggregation": "min", "units": CLIMATE_UNITS["tas"]},
@@ -166,10 +166,10 @@ TAS_FILL_DEFINITION = (
 
 # Supervised baseline binning; identifiers/coordinates are not predictors.
 BINNING_NUMERICAL_BINS = 5
-BINNING_CATEGORICAL_PREDICTORS = ("landcover", *FIRE_HISTORY_VARIABLES)
+BINNING_CATEGORICAL_PREDICTORS = ("landcover",)
 BINNING_OUTPUT_PATH = OUTPUTS_DIR / "binning.csv"
 
-# Greedy IV-ranked selection on raw training predictors; binary flags use Pearson.
+# Greedy IV-ranked selection on raw training predictors; nominal land cover is exempt.
 VARIABLE_SELECTION_CORRELATION_THRESHOLD = 0.6
 VARIABLE_SELECTION_NOMINAL_PREDICTORS = MERGE_STATIC_PREDICTORS["landcover"]
 VARIABLE_SELECTION_OUTPUT_PATH = OUTPUTS_DIR / "variable_selection.csv"

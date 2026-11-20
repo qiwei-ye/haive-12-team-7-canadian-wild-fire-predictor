@@ -34,9 +34,11 @@ It also combines those CSVs in data/clean/merged.nc, with partition(time).
 Use merge --netcdf-only to combine existing CSVs without regenerating them.
 Training/validation dates are split chronologically using the configured fractions.
 Fire processing begins in September 2017; August 2020 climate is stored as history
-before the clean modelling window. Fire-history features use the two calendar
-years ending one year before each row date: [t-3 years, t-1 year), with separate
-large/small neighbour indicators.
+before the clean modelling window. The two numerical fire-size predictors sum
+stored areas across the centre cell and eight retained neighbours over
+[t-90 days, t) and [t-2 calendar years, t-90 days). Today is excluded from both;
+unknown areas produce missing totals. Future features require observations
+covering the relevant windows.
 Weather features are inclusive 30-day precipitation sums and 7-day minima of daily
 average temperature; incomplete windows remain missing across split boundaries.
 Only ORRC climate, elevation, land cover, earlier fire history, and CWFIS targets

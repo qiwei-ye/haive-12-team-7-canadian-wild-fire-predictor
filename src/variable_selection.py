@@ -148,7 +148,7 @@ def export_inputs(clean_dir, output_dir, selection):
     selection_metadata = {
         "method": "Descending training IV; reject when absolute Pearson correlation with an earlier retained predictor exceeds threshold",
         "correlation_threshold": config.VARIABLE_SELECTION_CORRELATION_THRESHOLD,
-        "correlation_data": "Raw training predictors; binary flags included; nominal predictors exempt",
+        "correlation_data": "Raw training numerical predictors; nominal predictors exempt",
         "nominal_predictors": list(config.VARIABLE_SELECTION_NOMINAL_PREDICTORS),
         "selected_predictors": selected, "dropped_predictors": dropped,
         "fit_partition": "training", "source_clean_dir": str(clean_dir.resolve()),

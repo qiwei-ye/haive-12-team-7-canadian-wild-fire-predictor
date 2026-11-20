@@ -5,9 +5,10 @@ for all models. Regression outputs for the WoE logistic baseline are stored in
 `baseline/`. Raw selected-feature tree-model outputs are stored separately in
 `randomforest/` and `xgboost/` when those models are explicitly run.
 
-Fire-history predictors use `[row date - 3 calendar years, row date - 1 calendar year)`:
-the lower date is included and the upper date excluded. After changing this feature
-definition, rebuild the affected data and refit every supervised stage in order:
+Fire-size predictors use `[t-90 days, t)` and `[t-2 calendar years, t-90 days)`
+over the centre cell and eight retained neighbours. The current day is excluded.
+After changing these definitions, rebuild preparation stages in order, then
+refit models after resolving any missing selected predictors:
 
 ```powershell
 .venv/Scripts/python.exe run_pipeline.py preprocess --only fire
@@ -31,12 +32,11 @@ training dates from `src/config.py`. Validation/test predictor values and target
 are not used. All training rows are included, without sampling or class weighting.
 
 The predictor list comes from the existing merge configuration. Elevation,
-climate, and rolling weather predictors each receive exactly five OptBinning
-intervals, maximizing IV without a monotonicity constraint. Intervals are
+climate, rolling weather, and cumulative fire-area predictors each receive exactly
+five OptBinning intervals, maximizing IV without a monotonicity constraint. Intervals are
 left-inclusive and right-exclusive; the outer bounds are infinite. Failure to
 obtain five optimal bins stops the run without replacing the previous output.
-Land cover and the three binary fire-history indicators each keep one bin per
-observed training category. Categories are never combined, including categories
+Land cover keeps one bin per observed training category. Categories are never combined, including categories
 with no fire events. Dates, cell IDs, coordinates, partition labels, and the target
 are excluded from the predictor list.
 
@@ -46,6 +46,21 @@ predictor IV. Units, binning method/status, number of regular bins, training dat
 training sample/event counts, and target name document the fit. Missing predictor
 values, if present, receive a separate bin beyond the five numerical intervals.
 No empty special/missing bins or total rows are exported.
+
+`90_day_fire_size` and `2_year_90_day_fire_size` are numerical, in hectares.
+The recent window includes `t-90` through `t-1`; the older window includes the
+two-year anniversary through `t-91`. Each fire contributes once in its window
+across the centre cell and eight retained neighbours. Unknown areas propagate to
+missing values, while no qualifying report gives zero. Stored snapshot sizes are
+used without reconstructing historical as-of-date sizes. Previous binary fire
+predictors and the old cumulative-size name have been removed from preparation.
+Both features receive five training-fitted numerical bins and WoE/IV statistics.
+
+Rebuild the clean data, binning/WoE, and variable selection after changing these
+features. Existing model outputs remain from their previous fit until refitted.
+`90_day_fire_size` has 4,827 missing test values from unknown fire areas; its
+training/validation values and all older-window values are complete. Classifier
+evaluation requires explicit treatment of those missing selected predictors.
 
 WoE uses `ln((bin non-events / total non-events) / (bin events / total events))`;
 positive WoE indicates a lower large-fire rate. IV is the sum of
@@ -76,7 +91,7 @@ threshold, and training coverage. Each `corr_<predictor>` column holds one colum
 of the full raw-training Pearson correlation matrix, in the same predictor order
 as the rows. Land-cover correlations are blank because nominal category codes
 have no numerical ordering; land cover is retained outside the Pearson filter.
-Binary fire-history indicators participate in Pearson correlations.
+Both fire-size predictors participate in numerical Pearson correlations.
 
 A candidate is dropped when its **absolute** correlation with any earlier
 retained predictor is **greater than 0.6**. A correlation exactly at the threshold
@@ -196,7 +211,7 @@ without that flag leaves training unstarted:
 ```
 
 Both read only the selected predictors from `data/inputs/merged.nc`. They do not
-read `binning.csv`, refit bins, or use WoE. Numerical and binary predictors retain
+read `binning.csv`, refit bins, or use WoE. Numerical predictors retain
 their values, represented as float32 for the tree libraries. Nominal land cover
 uses one-hot encoding fitted inside each training CV fold and then refitted on
 the complete training partition. An unseen heldout category has all-zero dummy

@@ -4,8 +4,8 @@ Bin: .venv/Scripts/python.exe -m src.baseline
 Fit: .venv/Scripts/python.exe -m src.baseline --fit
 
 Numerical predictors use exactly five OptBinning intervals. Categorical
-predictors, including binary fire-history flags, keep one bin per observed
-training category. Regression uses selected data/inputs predictors and the
+predictors keep one bin per observed training category. Regression uses selected
+data/inputs predictors and the
 existing WoE values, with five-fold stratified CV to select C. Bins and prior
 variable selection are fixed, so CV is conditional on full-training preprocessing.
 """
@@ -39,7 +39,7 @@ def predictor_types():
         *(name for fields in config.MERGE_STATIC_PREDICTORS.values() for name in fields),
         *config.CLIMATE_VARIABLES,
         *config.ROLLING_WEATHER_FEATURES,
-        *config.FIRE_HISTORY_VARIABLES,
+        *config.ROLLING_FIRE_FEATURES,
     )
     return {name: "categorical" if name in config.BINNING_CATEGORICAL_PREDICTORS else "numerical"
             for name in names}
