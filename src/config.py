@@ -101,7 +101,7 @@ CANSIPS_PRECIPITATION_HOURS = 24
 # Bound memory use without changing the source or target data resolutions.
 PROCESSING_TIME_CHUNK = 32
 
-# CWFIS supplies fire records; NWT supplies dates for matched January 1 placeholders.
+# CWFIS supplies fire records; matched NWT records supply dates and missing areas.
 LARGE_FIRE_THRESHOLD_HA = 1_000
 FIRE_OUTPUT_COLUMNS = (
     "fire_id", "latitude", "longitude", "report_date", "size_ha", "is_large_fire",
@@ -125,6 +125,7 @@ FIRE_DATE_REFERENCE = {
     "id_column": "title",
     "date_column": "estimatedstart",
     "discovery_column": "discoverydate",
+    "area_column": "currentsize",
     "latitude_column": "latitude",
     "longitude_column": "longitude",
     "coordinate_decimal_places": 4,  # Precision of the CWFIS coordinates.
@@ -132,6 +133,11 @@ FIRE_DATE_REFERENCE = {
 FIRE_DATE_DEFINITION = (
     "CWFIS situation report dates, except exact-ID-matched January 1 NWT 2026 "
     "placeholders use NWT estimated start dates; unmatched January 1 dates remain unchanged"
+)
+FIRE_AREA_DEFINITION = (
+    "Valid CWFIS fire sizes are retained; missing or invalid 2026 NT sizes use "
+    "NWT currentsize, including published zeros, only for exact fire ID matches "
+    "with coordinates agreeing at CWFIS precision; unmatched areas remain missing"
 )
 
 # Daily historical modelling tables: chronological splitting and eight neighbours.
@@ -187,6 +193,9 @@ BASELINE_COEFFICIENTS_PATH = BASELINE_OUTPUTS_DIR / "baseline_coefficients.csv"
 BASELINE_PERFORMANCE_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.csv"
 BASELINE_ROC_PATH = BASELINE_OUTPUTS_DIR / "baseline_performance.png"
 BASELINE_PROBABILITIES_PATH = BASELINE_OUTPUTS_DIR / "baseline_probabilities.nc"
+BASELINE_SHAP_PATH = BASELINE_OUTPUTS_DIR / "baseline_shap.csv"
+BASELINE_SHAP_PLOT_PATH = BASELINE_OUTPUTS_DIR / "baseline_shap.png"
+BASELINE_SHAP_CHUNK_ROWS = 100_000
 
 # Raw selected-feature tree models share the baseline CV folds and decision costs.
 # Parallelise trees within a fit; grid-search candidates/folds run sequentially.

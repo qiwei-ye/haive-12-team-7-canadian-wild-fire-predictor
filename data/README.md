@@ -23,14 +23,15 @@ or change its original report date, location, and area. Dates are taken from
 with the official NWT `estimatedstart` calendar date from
 `data/raw/fire/NWT/fire_incidents_2026.json`. Matching uses exact national/agency
 IDs and checks coordinates at CWFIS's published precision. CWFIS locations and
-areas are preserved; status dates are never substituted. Correction occurs before
+valid areas are preserved; missing or invalid 2026 NT areas use matched NWT
+`currentsize`, including published numeric zeros. Status dates are never substituted. Correction occurs before
 the historical window filter, so corrected September 2026 fires are omitted.
-Unknown or negative areas remain blank in the processed source.
+Areas unresolved by either source remain blank in the processed source.
 
 Unmatched January 1 records retain their CWFIS dates and trigger console warnings.
 NWT start dates are estimates, and its original report dates are unavailable.
 The six-column `cwfis.csv` schema is retained; its `report_date` column now denotes
-the processed fire date with this documented exception. NWT is a date reference
+the processed fire date with this documented exception. NWT is a date/area reference
 for CWFIS records, without adding duplicate fire observations.
 
 To combine the existing processed inputs into daily historical tables, run:
@@ -122,8 +123,11 @@ those observations must be available when constructing the features.
 The four configured excluded dates remain omitted because humidity and wind are
 still unavailable. Their filled temperatures contribute to later seven-day minima.
 Weather/static predictors, targets, and the older fire-size feature are complete.
-`90_day_fire_size` is complete in training and validation; 4,827 test cell-days
-have missing totals because of the 24 reports with unknown fire areas.
+Both fire-size features are complete across all partitions. The 24 unavailable
+CWFIS areas were replaced with matched NWT published zeros before computing the
+totals, resolving 4,827 previously missing test values in `90_day_fire_size`.
+Other fires' known areas still contribute to those totals. Training/validation,
+the older fire-size feature, and all target labels are unchanged by this fallback.
 Processed climate files retain their complete daily time coordinates, including
 the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 
@@ -132,7 +136,10 @@ NWT dates follow the agency's estimated start field, including its distinction
 from discovery dates. Unmatched dates remain unresolved. Zero targets mean
 **no reported large fire**, not verified absence. A zero fire-size feature means
 zero total reported area in its window, not verified absence of fire. Unknown
-fire sizes remain missing in the processed CWFIS source. Cleaned large-fire indicators
+fire sizes without a valid matched NWT fallback remain missing in the processed
+CWFIS source. NWT published zeros are accepted source values, not proof of fire
+absence. `FIRE_AREA_DEFINITION` and the NetCDF `fire_area_definition` attribute
+document this rule. Cleaned large-fire indicators
 use `0` for missing values. Missing predictors remain empty CSV
 fields; the centered historical `tas` fill is the sole predictor-imputation rule.
 

@@ -4,6 +4,8 @@ Outputs use CWFIS dates with matched January 1 placeholders replaced by official
 NWT estimated start dates. Repeated national IDs retain their earliest annual
 snapshot. Both steps precede historical date filtering, so later carryover reports
 cannot create another event or move its date.
+Missing CWFIS areas use exact-ID, coordinate-checked NWT currentsize values,
+including published zeros; valid CWFIS areas are retained.
 No grid aggregation or predictor merging is performed.
 Records with unknown dates are excluded; unknown locations and areas remain
 missing. Indicators are 0/1 for known areas and missing for unknown areas.
@@ -31,6 +33,31 @@ def calendar_dates(values):
     return dates.where(valid)
 
 
+def _matched_nwt_records(records, eligible, fields):
+    """Match official reference rows by exact ID and verify their coordinates."""
+    settings = config.FIRE_DATE_REFERENCE
+    path = config.FIRE_DATA_DIR / settings["relative_path"]
+    reference = pd.DataFrame(json.loads(path.read_text(encoding="utf-8")))
+    required = [settings[name] for name in ("id_column", "latitude_column", "longitude_column", *fields)]
+    missing = set(required) - set(reference.columns)
+    if missing:
+        raise ValueError(f"NWT reference fields are missing: {sorted(missing)}")
+    identifiers = reference[settings["id_column"]].astype("string").str.strip()
+    if identifiers.isna().any() or identifiers.eq("").any() or identifiers.duplicated().any():
+        raise ValueError("Missing or duplicate NWT fire identifiers")
+    reference.index = f"{settings['year']}_{settings['agency']}_" + identifiers
+    matched = records.index[eligible & records.fire_id.isin(reference.index)]
+    selected = reference.reindex(records.loc[matched, "fire_id"]).set_axis(matched)
+    tolerance = 0.5 * 10 ** -settings["coordinate_decimal_places"]
+    for name in ("latitude", "longitude"):
+        original = pd.to_numeric(records.loc[matched, name], errors="coerce").to_numpy(dtype=float)
+        proposed = pd.to_numeric(selected[settings[f"{name}_column"]], errors="coerce").to_numpy(dtype=float)
+        if not (np.isfinite(original).all() and np.isfinite(proposed).all()
+                and np.all(np.abs(original - proposed) <= tolerance + 1e-8)):
+            raise ValueError(f"CWFIS/NWT {name} coordinates disagree for matched fires")
+    return selected
+
+
 def correct_january_1_dates(records):
     """Return records and a log; change only dates supported by exact NWT IDs."""
     result = records.copy()
@@ -49,28 +76,11 @@ def correct_january_1_dates(records):
     eligible = january & result.fire_id.str.startswith(prefix, na=False)
     if eligible.any():
         path = config.FIRE_DATA_DIR / settings["relative_path"]
-        reference = pd.DataFrame(json.loads(path.read_text(encoding="utf-8")))
-        required = [settings[name] for name in ("id_column", "date_column", "discovery_column",
-                                               "latitude_column", "longitude_column")]
-        missing = set(required) - set(reference.columns)
-        if missing:
-            raise ValueError(f"NWT date reference fields are missing: {sorted(missing)}")
-        identifiers = reference[settings["id_column"]].astype("string").str.strip()
-        if identifiers.isna().any() or identifiers.eq("").any() or identifiers.duplicated().any():
-            raise ValueError("Missing or duplicate NWT fire identifiers")
-        reference.index = prefix + identifiers
-        matched = result.index[eligible & result.fire_id.isin(reference.index)]
-        selected = reference.reindex(result.loc[matched, "fire_id"]).set_axis(matched)
+        selected = _matched_nwt_records(result, eligible, ("date_column", "discovery_column"))
+        matched = selected.index
         replacement = calendar_dates(selected[settings["date_column"]])
         if replacement.isna().any():
             raise ValueError("Missing or invalid matched NWT estimated start dates")
-        tolerance = 0.5 * 10 ** -settings["coordinate_decimal_places"]
-        for name in ("latitude", "longitude"):
-            original = pd.to_numeric(result.loc[matched, name], errors="coerce").to_numpy(dtype=float)
-            proposed = pd.to_numeric(selected[settings[f"{name}_column"]], errors="coerce").to_numpy(dtype=float)
-            if not (np.isfinite(original).all() and np.isfinite(proposed).all()
-                    and np.all(np.abs(original - proposed) <= tolerance + 1e-8)):
-                raise ValueError(f"CWFIS/NWT {name} coordinates disagree for matched January 1 fires")
         discovery = calendar_dates(selected[settings["discovery_column"]])
         result.loc[matched, "report_date"] = replacement
         log.loc[matched, "corrected_report_date"] = replacement
@@ -85,6 +95,27 @@ def correct_january_1_dates(records):
         LOGGER.warning("%s January 1 fires have no NWT date match; dates retained: %s",
                        len(unmatched), unmatched.tolist()[:10])
     return result, log
+
+
+def fill_missing_fire_areas(records):
+    """Use matched NWT published areas, including zero, only for invalid CWFIS sizes."""
+    result = records.copy()
+    areas = pd.to_numeric(result.size_ha, errors="coerce").astype("Float64")
+    settings = config.FIRE_DATE_REFERENCE
+    prefix = f"{settings['year']}_{settings['agency']}_"
+    eligible = result.fire_id.str.startswith(prefix, na=False) & ~(np.isfinite(areas) & areas.ge(0)).fillna(False)
+    if eligible.any():
+        selected = _matched_nwt_records(result, eligible, ("area_column",))
+        values = selected[settings["area_column"]]
+        # JSON false is not a measured zero area.
+        values = values.mask(values.map(lambda value: isinstance(value, (bool, np.bool_))))
+        replacement = pd.to_numeric(values, errors="coerce").astype("Float64")
+        valid = (np.isfinite(replacement) & replacement.ge(0)).fillna(False)
+        areas.loc[replacement.index[valid]] = replacement.loc[valid]
+        LOGGER.info("Replaced %s unavailable CWFIS areas from NWT currentsize (%s published zeros)",
+                    int(valid.sum()), int(replacement.loc[valid].eq(0).sum()))
+    result["size_ha"] = areas
+    return result
 
 
 def standardize_records(records):
@@ -144,6 +175,7 @@ def preprocess(output_dir=None):
         unique = records.drop_duplicates("fire_id", keep="first")
         LOGGER.info("%s: removed %s repeated annual-snapshot records", source, len(records) - len(unique))
         unique, _ = correct_january_1_dates(unique)
+        unique = fill_missing_fire_areas(unique)
         result = standardize_records(unique).sort_values(["report_date", "fire_id"], kind="stable").reset_index(drop=True)
         LOGGER.info("%s: kept %s of %s unique records after cell exclusions and historical date filtering", source,
                     len(result), len(unique))

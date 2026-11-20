@@ -26,6 +26,7 @@ def _clean_target_definitions():
                          "otherwise 0, including missing indicators and unknown reported fire sizes",
         "missing_values": "Missing is_large_fire indicators are replaced with 0; historical tas uses the configured centered mean fill before weather features; other missing predictor values remain unknown",
         "fire_date": config.FIRE_DATE_DEFINITION,
+        "fire_area": config.FIRE_AREA_DEFINITION,
     }
 
 
@@ -318,6 +319,7 @@ def merge_csvs_to_netcdf(output_dir=None):
                "fire_history_coverage": summary["definitions"]["fire_history_coverage"],
                "fire_sources": ",".join(summary["fire_sources"]),
                "fire_date_definition": summary["definitions"]["fire_date"],
+               "fire_area_definition": summary["definitions"]["fire_area"],
                "tas_fill_definition": config.TAS_FILL_DEFINITION},
     )
     dataset.time.attrs = {"standard_name": "time", "long_name": "Daily CSV date"}

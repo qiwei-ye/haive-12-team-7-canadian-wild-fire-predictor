@@ -8,6 +8,8 @@ predictors keep one bin per observed training category. Regression uses selected
 data/inputs predictors and the
 existing WoE values, with five-fold stratified CV to select C. Bins and prior
 variable selection are fixed, so CV is conditional on full-training preprocessing.
+SHAP feature importance explains fitted log odds against the full training WoE
+mean; validation/test rows do not contribute to the explanation background.
 """
 
 import argparse
@@ -358,7 +360,7 @@ def partition_performance(target, probabilities, partition, threshold):
 
 
 def run_classifier(input_path=None, binning_path=None, output_dir=None):
-    """Fit selected WoE predictors; export coefficients, metrics, ROC, and probabilities."""
+    """Fit selected WoE predictors; export evaluation, probabilities, and SHAP importance."""
     input_path = Path(input_path) if input_path is not None else config.INPUT_DATA_DIR / config.CLEAN_MERGED_FILENAME
     binning_path = Path(binning_path) if binning_path is not None else config.BINNING_OUTPUT_PATH
     output_dir = Path(output_dir) if output_dir is not None else config.BASELINE_OUTPUTS_DIR
@@ -436,6 +438,96 @@ def export_probabilities(input_path, partition_probabilities, output_path, metad
         temporary.unlink(missing_ok=True)
     LOGGER.info("Saved fitted cell-day probabilities to %s", output_path)
     return output_path
+
+
+def export_shap(model, features, names, output_dir, metadata):
+    """Export exact interventional linear SHAP importance over all training rows.
+
+    For WoE inputs, phi_j = beta_j * (WoE_j - mean_training_WoE_j).
+    The output scale is log odds, not probability or a causal effect.
+    """
+    import shap
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    features = np.asarray(features, dtype=np.float64)
+    coefficients = np.asarray(model.coef_[0], dtype=np.float64)
+    if (features.ndim != 2 or not len(features) or features.shape[1] != len(names)
+            or coefficients.shape != (len(names),) or not len(names) or len(set(names)) != len(names)
+            or not np.isfinite(features).all() or not np.isfinite(coefficients).all()):
+        raise ValueError("SHAP requires finite training WoE values and matching model predictors")
+    mean = features.mean(axis=0)
+    # Supplying exact moments avoids SHAP's default sampling of the background.
+    explainer = shap.LinearExplainer((coefficients, float(model.intercept_[0])), (mean, None))
+    expected_value = float(explainer.expected_value)
+    total_abs = np.zeros(len(names))
+    total = np.zeros(len(names))
+    total_squared = np.zeros(len(names))
+    minimum, maximum = np.full(len(names), np.inf), np.full(len(names), -np.inf)
+    max_error = 0.
+    with threadpool_limits(limits=1):
+        for start in range(0, len(features), config.BASELINE_SHAP_CHUNK_ROWS):
+            chunk = features[start:start + config.BASELINE_SHAP_CHUNK_ROWS]
+            values = np.asarray(explainer.shap_values(chunk), dtype=np.float64)
+            prediction = model.decision_function(chunk)
+            reconstructed = expected_value + values.sum(axis=1)
+            if (values.shape != chunk.shape or not np.isfinite(values).all()
+                    or not np.allclose(reconstructed, prediction, rtol=1e-10, atol=1e-10)):
+                raise ValueError("Linear SHAP values do not reconstruct model log odds")
+            max_error = max(max_error, float(np.max(np.abs(reconstructed - prediction))))
+            total_abs += np.abs(values).sum(axis=0)
+            total += values.sum(axis=0)
+            total_squared += np.square(values).sum(axis=0)
+            minimum = np.minimum(minimum, values.min(axis=0))
+            maximum = np.maximum(maximum, values.max(axis=0))
+    mean_abs, mean_signed = total_abs / len(features), total / len(features)
+    report = pd.DataFrame({
+        "variable": names, "mean_abs_shap": mean_abs,
+        "importance_share": mean_abs / mean_abs.sum() if mean_abs.sum() else np.zeros(len(names)),
+        "mean_shap": mean_signed,
+        "std_shap": np.sqrt(np.maximum(total_squared / len(features) - mean_signed ** 2, 0)),
+        "min_shap": minimum, "max_shap": maximum,
+        "coefficient": coefficients, "mean_training_woe": mean,
+    }).sort_values("mean_abs_shap", ascending=False, kind="stable").reset_index(drop=True)
+    report.insert(0, "rank", np.arange(1, len(report) + 1))
+    for name, value in {**metadata, "explainer": "LinearExplainer_interventional",
+                        "shap_version": shap.__version__, "shap_units": "log_odds",
+                        "background_partition": "training", "explained_partition": "training",
+                        "background_rows": len(features), "explained_rows": len(features),
+                        "expected_value_log_odds": expected_value,
+                        "max_additivity_error": max_error}.items():
+        report[name] = value
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / config.BASELINE_SHAP_PATH.name
+    temporary = path.with_suffix(".partial.csv")
+    try:
+        report.to_csv(temporary, index=False, encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+    figure = Figure(figsize=(9, 6.5), layout="constrained")
+    FigureCanvasAgg(figure)
+    axis = figure.subplots()
+    positions = np.arange(len(report))
+    axis.barh(positions, report.mean_abs_shap, color="#26758e")
+    axis.set_yticks(positions, report.variable)
+    axis.invert_yaxis()
+    axis.set(xlabel="Mean absolute SHAP value (log odds)",
+             title=f"Baseline feature importance\nAll {len(features):,} training cell-days; exact training background")
+    axis.grid(axis="x", alpha=.2)
+    axis.set_axisbelow(True)
+    path = output_dir / config.BASELINE_SHAP_PLOT_PATH.name
+    temporary = path.with_suffix(".partial.png")
+    try:
+        figure.savefig(temporary, dpi=160, format="png")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+        figure.clear()
+    LOGGER.info("Saved exact training SHAP importance; maximum log-odds reconstruction error %.3g", max_error)
+    return report
 
 
 def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training_data=None):
@@ -535,7 +627,8 @@ def evaluate_classifier(model, cv, names, input_path, bins, output_dir, training
     finally:
         temporary.unlink(missing_ok=True)
         figure.clear()
-    LOGGER.info("Saved baseline coefficients, performance, ROC plot, and probabilities under %s", output_dir)
+    export_shap(model, x_train, names, output_dir, common)
+    LOGGER.info("Saved baseline coefficients, performance, ROC plot, probabilities, and SHAP importance under %s", output_dir)
     return coefficients, performance
 
 

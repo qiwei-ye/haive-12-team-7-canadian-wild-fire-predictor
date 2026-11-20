@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -100,6 +101,44 @@ class BaselineModelTests(unittest.TestCase):
             result = baseline.optimize_threshold(target, probabilities)
             self.assertGreater(result["probability_threshold"], probabilities.max())
 
+    def test_linear_shap_matches_exact_all_training_background_and_is_chunk_invariant(self):
+        rng = np.random.default_rng(config.RANDOM_SEED)
+        features = rng.normal(size=(207, 4))
+        features[:, -1] = 3.
+        names = ["tas", "hurs", "zero_coefficient", "constant"]
+        coefficients = np.array([1.25, -.7, 0., 2.])
+        intercept = -3.
+        model = SimpleNamespace(coef_=coefficients[None, :], intercept_=np.array([intercept]),
+                                decision_function=lambda values: intercept + values @ coefficients)
+        mean = features.mean(axis=0)
+        expected = (features - mean) * coefficients
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(config, "BASELINE_SHAP_CHUNK_ROWS", 17):
+                report = baseline.export_shap(model, features, names, root / "first", {})
+            with patch.object(config, "BASELINE_SHAP_CHUNK_ROWS", 29):
+                repeated = baseline.export_shap(model, features, names, root / "second", {})
+            indexed = report.set_index("variable").loc[names]
+            np.testing.assert_allclose(indexed.mean_abs_shap, np.abs(expected).mean(axis=0))
+            np.testing.assert_allclose(indexed.mean_shap, expected.mean(axis=0), atol=1e-14)
+            np.testing.assert_allclose(indexed.std_shap, expected.std(axis=0), atol=1e-14)
+            np.testing.assert_allclose(indexed.min_shap, expected.min(axis=0))
+            np.testing.assert_allclose(indexed.max_shap, expected.max(axis=0))
+            np.testing.assert_allclose(indexed.mean_training_woe, mean)
+            self.assertTrue(report.background_rows.eq(len(features)).all())
+            self.assertTrue(report.explained_rows.eq(len(features)).all())
+            self.assertTrue(report.background_partition.eq("training").all())
+            self.assertTrue(report.explained_partition.eq("training").all())
+            self.assertTrue(report.shap_units.eq("log_odds").all())
+            np.testing.assert_allclose(report.expected_value_log_odds, intercept + mean @ coefficients)
+            self.assertLess(report.max_additivity_error.max(), 1e-12)
+            self.assertAlmostEqual(report.importance_share.sum(), 1.)
+            self.assertTrue(report.mean_abs_shap.is_monotonic_decreasing)
+            pd.testing.assert_frame_equal(report, repeated, atol=1e-13)
+            self.assertTrue((root / "first" / config.BASELINE_SHAP_PLOT_PATH.name).read_bytes().startswith(b"\x89PNG"))
+            self.assertTrue((root / "first" / config.BASELINE_SHAP_PATH.name).is_file())
+            self.assertFalse(list(root.rglob("*.partial.*")))
+
     def test_end_to_end_exports_and_heldout_data_cannot_change_coefficients_or_c(self):
         windows = {**config.TIME_WINDOWS, "training_validation": ("2020-09-01", "2020-09-05"),
                    "testing": ("2020-09-06", "2020-09-07")}
@@ -145,6 +184,10 @@ class BaselineModelTests(unittest.TestCase):
             self.assertTrue((output / config.BASELINE_COEFFICIENTS_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_PERFORMANCE_PATH.name).is_file())
             self.assertTrue((output / config.BASELINE_ROC_PATH.name).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            shap_report = pd.read_csv(output / config.BASELINE_SHAP_PATH.name)
+            self.assertEqual(set(shap_report.variable), {"tas", "landcover"})
+            self.assertTrue(shap_report.background_rows.eq(coverage["rows"]).all())
+            self.assertTrue((output / config.BASELINE_SHAP_PLOT_PATH.name).read_bytes().startswith(b"\x89PNG"))
             with xr.open_dataset(output / config.BASELINE_PROBABILITIES_PATH.name) as exported:
                 self.assertEqual(set(exported.data_vars), {"large_fire_probability", "partition"})
                 self.assertEqual(exported.large_fire_probability.dims, ("time", "cell"))
@@ -169,6 +212,7 @@ class BaselineModelTests(unittest.TestCase):
             repeated, coefficients_again, _ = baseline.run_classifier(source, report, root / "second")
             self.assertEqual(model.C, repeated.C)
             pd.testing.assert_frame_equal(coefficients, coefficients_again)
+            pd.testing.assert_frame_equal(shap_report, pd.read_csv(root / "second" / config.BASELINE_SHAP_PATH.name))
             self.assertFalse(list(output.glob("*.partial.*")))
 
 

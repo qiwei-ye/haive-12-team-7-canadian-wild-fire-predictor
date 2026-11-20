@@ -58,9 +58,10 @@ Both features receive five training-fitted numerical bins and WoE/IV statistics.
 
 Rebuild the clean data, binning/WoE, and variable selection after changing these
 features. Existing model outputs remain from their previous fit until refitted.
-`90_day_fire_size` has 4,827 missing test values from unknown fire areas; its
-training/validation values and all older-window values are complete. Classifier
-evaluation requires explicit treatment of those missing selected predictors.
+All current selected predictors are complete. Matching NWT published sizes,
+including zeros, replaced 24 unavailable CWFIS areas before computing rolling
+totals, resolving 4,827 previously missing test values in `90_day_fire_size`.
+Training/validation and the training-fitted binning/selection are unchanged.
 
 WoE uses `ln((bin non-events / total non-events) / (bin events / total events))`;
 positive WoE indicates a lower large-fire rate. IV is the sum of
@@ -161,6 +162,8 @@ that separate evaluation.
 | `baseline/baseline_performance.csv` | One row per training/validation/test partition: TN, FP, FN, TP counts, probability-based ROC-AUC, optimized threshold, total/mean cost, unflag-everything comparison cost, precision, recall, specificity, F1, and accuracy. Includes all candidate mean/std/fold AUCs in the JSON-valued `cv_auc_by_C` field. |
 | `baseline/baseline_performance.png` | ROC curves and AUCs for all three partitions; training is marked in-sample. Matching coloured dots mark the selected threshold's operating point on each curve. |
 | `baseline/baseline_probabilities.nc` | Fitted `large_fire_probability(time, cell)` and `partition(time)` for every retained training/validation/test cell-day, with the input time, cell IDs, latitude/longitude coordinates, and CRS metadata. No predictor or observed-target values are included. |
+| `baseline/baseline_shap.csv` | One row per selected predictor, ranked by mean absolute SHAP, with importance share, signed mean, standard deviation, range, coefficient, training WoE mean, expected log odds, additivity error, and model/background metadata. |
+| `baseline/baseline_shap.png` | Global feature importance as mean absolute SHAP values on the log-odds scale, over every training cell-day. |
 
 The probability NetCDF uses compressed float64 values from the final model fitted
 on all training rows. Training probabilities are in-sample, rather than out-of-fold;
@@ -169,6 +172,17 @@ validation/test probabilities use the same fitted model. Dates and cells match
 0 to 1 and are independent of the chosen flag threshold. Model, training, threshold,
 and cost metadata document the exported predictions. Each `--fit` run writes this
 file alongside the other regression outputs.
+
+Each fit also uses SHAP's interventional `LinearExplainer` to explain the final
+model on its WoE inputs. The background uses the exact mean of **all training
+rows**, without sampling or validation/test data. For feature `j`, the exact
+contribution is `coefficient_j * (WoE_j - mean_training_WoE_j)`; the expected
+log odds plus the contributions reconstruct each model decision score, which is
+checked during export. Explanations are computed in bounded chunks and aggregated
+over all training rows. Importance shares sum to one when any contribution varies.
+Signed means are approximately zero because the background and explained rows
+are the same; they do not describe a feature's overall direction. These are
+model contributions in log odds, rather than probability changes or causal effects.
 
 Standard metrics are ratios from 0 to 1: precision is `TP / (TP + FP)`, recall is
 `TP / (TP + FN)`, and specificity is `TN / (TN + FP)`. These use 0 when their

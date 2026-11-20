@@ -26,7 +26,7 @@ clean modelling dates still begin on 2020-09-01.
 | `grid.nc` | Common `cell`, `lat`, and `lon` coordinates; 2,168 cells, no time dimension. |
 | `canada_cells.gpkg` | `cells` layer containing the Canadian portion of each retained grid cell, keyed by `cell`; EPSG:4326. |
 | [climate/](climate/README.md) | Daily historical ORRC predictors and forecast-only CanESM5/CanSIPSv3 predictors. |
-| [fire/](fire/README.md) | Consolidated CWFIS event records with NWT date corrections. |
+| [fire/](fire/README.md) | Consolidated CWFIS event records with NWT date corrections and matched fallback for unavailable areas. |
 | [static/](static/README.md) | Elevation, fuel type, and 2020 land-cover predictors stored once per cell. |
 
 Run from the project root:

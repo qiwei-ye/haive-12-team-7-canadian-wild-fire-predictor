@@ -21,7 +21,7 @@ class FireTests(unittest.TestCase):
         path.write_text(json.dumps(records), encoding="utf-8")
         return path
 
-    def test_nwt_dates_are_corrected_before_filtering_without_replacing_areas_or_locations(self):
+    def test_nwt_dates_and_missing_areas_are_corrected_without_replacing_known_areas_or_locations(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             raw = root / "raw"
@@ -52,8 +52,8 @@ class FireTests(unittest.TestCase):
             self.assertEqual(result.loc[identifiers[0], "size_ha"], 1000)
             self.assertEqual(result.loc[identifiers[0], "is_large_fire"], 1)
             self.assertEqual(result.loc[identifiers[2], "report_date"], "2026-07-23")
-            self.assertTrue(pd.isna(result.loc[identifiers[2], "size_ha"]))
-            self.assertTrue(pd.isna(result.loc[identifiers[2], "is_large_fire"]))
+            self.assertEqual(result.loc[identifiers[2], "size_ha"], 0)
+            self.assertEqual(result.loc[identifiers[2], "is_large_fire"], 0)
             self.assertEqual(result.loc[identifiers[3], "report_date"], "2026-06-02")
             self.assertEqual(result.loc[identifiers[4], "report_date"], "2023-01-01")
             self.assertEqual(result.loc[identifiers[5], "report_date"], "2026-01-01")
@@ -62,6 +62,45 @@ class FireTests(unittest.TestCase):
             self.assertEqual(list(outputs[0].parent.iterdir()), outputs)
             for path, expected in originals.items():
                 self.assertEqual(path.read_bytes(), expected)
+
+    def test_nwt_area_fallback_accepts_published_sizes_only_for_exact_matches(self):
+        identifiers = [f"2026_NT_SS00{i}-26" for i in range(1, 9)]
+        records = pd.DataFrame({
+            "fire_id": [*identifiers, "2026_AB_SS001-26", "2026_NT_NO_MATCH"],
+            "report_date": ["2026-07-01"] * 10,
+            "latitude": [50] * 10, "longitude": [-100] * 10,
+            "size_ha": [12, -1, None, -1, -1, -1, -1, -1, -1, -1],
+        })
+        original = records.copy(deep=True)
+        reference = [{"title": identifier.removeprefix("2026_NT_"),
+                      "latitude": 50, "longitude": -100, "currentsize": size}
+                     for identifier, size in zip(identifiers, [0, 0, 1500, None, False, -1, "inf", "unavailable"])]
+        with TemporaryDirectory() as directory:
+            raw = Path(directory)
+            path = self.write_date_reference(raw, reference)
+            source_bytes = path.read_bytes()
+            with patch.object(config, "FIRE_DATA_DIR", raw):
+                result = data_fire.standardize_records(data_fire.fill_missing_fire_areas(records))
+            self.assertEqual(result.size_ha.iloc[:3].tolist(), [12, 0, 1500])
+            self.assertEqual(result.is_large_fire.iloc[:3].tolist(), [0, 0, 1])
+            self.assertTrue(result.size_ha.iloc[3:].isna().all())
+            self.assertTrue(result.is_large_fire.iloc[3:].isna().all())
+            self.assertEqual(path.read_bytes(), source_bytes)
+        pd.testing.assert_frame_equal(records, original)
+
+    def test_nwt_area_fallback_rejects_coordinate_disagreement_and_missing_fields(self):
+        records = pd.DataFrame({"fire_id": ["2026_NT_SS001-26"], "report_date": ["2026-07-01"],
+                                "latitude": [50], "longitude": [-100], "size_ha": [-1]})
+        valid = {"title": "SS001-26", "latitude": 50, "longitude": -100, "currentsize": 0}
+        cases = [([valid, dict(valid)], "duplicate NWT"),
+                 ([dict(valid, longitude=-101)], "coordinates disagree"),
+                 ([{key: value for key, value in valid.items() if key != "currentsize"}], "fields are missing")]
+        for reference, message in cases:
+            with self.subTest(message=message), TemporaryDirectory() as directory:
+                raw = Path(directory)
+                self.write_date_reference(raw, reference)
+                with patch.object(config, "FIRE_DATA_DIR", raw), self.assertRaisesRegex(ValueError, message):
+                    data_fire.fill_missing_fire_areas(records)
 
     def test_nwt_reference_validation_rejects_ambiguous_dates_ids_and_coordinates(self):
         valid = {"title": "SS001-26", "estimatedstart": "2026-07-01", "discoverydate": "2026-07-01",

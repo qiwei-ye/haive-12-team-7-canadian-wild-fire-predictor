@@ -2,7 +2,7 @@
 
 **File source:** [Government of the Northwest Territories, Environment and Climate Change - wildfire incident feed](https://www.gov.nt.ca/ecc/services/wildfire-update/sites/default/files/firedata/fires.json), used by the [official NWT fire map](https://www.gov.nt.ca/ecc/services/wildfire-update/en/firemap). Downloaded 2026-10-17; this is the unchanged snapshot used in the January 1 CWFIS comparison.
 
-**File purpose:** Provide 290 NWT fire incidents for the 2026 season, including agency identifiers, starting locations, estimated start and discovery dates, areas, and operational classifications. Preserve the original JSON array, timestamp strings, zero values, and missing-value codes. The time horizon describes estimated start and discovery dates.
+**File purpose:** Provide 290 NWT fire incidents for the 2026 season, including agency identifiers, starting locations, estimated start and discovery dates, areas, and operational classifications. Matched records supply CWFIS January 1 date corrections and fallback areas where CWFIS sizes are unavailable, including published zeros. Preserve the original JSON array, timestamp strings, zero values, and missing-value codes. The time horizon describes estimated start and discovery dates.
 
 **Time horizon:** 2026-05-09 to 2026-09-26
 

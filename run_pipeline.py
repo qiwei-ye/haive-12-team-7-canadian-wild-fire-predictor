@@ -24,8 +24,9 @@ limited to the supplied files. Static elevation remains district-level informati
 Fire preprocessing combines CWFIS snapshots into data/processed/fire/cwfis.csv,
 using national fire IDs and retaining the earliest snapshot for repeated IDs,
 correcting matched January 1 placeholders from NWT estimated start dates before
-filtering to the configured historical period. CWFIS locations and areas are
-preserved; unmatched January 1 dates are retained and reported in console warnings.
+filtering to the configured historical period. CWFIS locations and valid areas are
+preserved; missing 2026 NT areas use exact-ID, coordinate-checked NWT currentsize,
+including published zeros. Unmatched January 1 dates are retained and reported in console warnings.
 It runs separately with --only fire;
 the default 'all' selection continues to process climate/geological predictors.
 
