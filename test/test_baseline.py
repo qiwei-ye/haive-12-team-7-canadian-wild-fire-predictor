@@ -34,6 +34,24 @@ class BinningTests(unittest.TestCase):
                                                   (row.event / (target == 1).sum())))
         self.assertAlmostEqual(table.iv.sum(), table.variable_iv.iloc[0])
 
+    def test_sparse_fourteen_day_area_keeps_five_bins_with_configured_prebin_size(self):
+        values = np.r_[np.zeros(18000), np.repeat(np.arange(1, 21), 100)]
+        target = np.r_[np.ones(100), np.zeros(17900),
+                       np.concatenate([np.r_[np.ones(i + 1), np.zeros(99 - i)] for i in range(20)])]
+        with patch.object(config, "BINNING_PREDICTOR_PARAMETERS", {}):
+            with self.assertRaisesRegex(ValueError, "INFEASIBLE"):
+                baseline.fit_variable("14_day_fire_size", values, target, "numerical")
+        table = baseline.fit_variable("14_day_fire_size", values, target, "numerical")
+        self.assertEqual(len(table), 5)
+        self.assertEqual(table["count"].sum(), len(values))
+        self.assertEqual(table.event.sum(), target.sum())
+        self.assertTrue(table.min_prebin_size.eq(.01).all())
+        self.assertTrue(np.isfinite(table.woe).all())
+        for row in table.itertuples():
+            selected = (values >= row.lower_bound) & (values < row.upper_bound)
+            self.assertEqual(selected.sum(), row.count)
+            self.assertEqual(target[selected].sum(), row.event)
+
     def test_categories_are_never_merged_and_pure_bins_have_infinite_woe(self):
         table = baseline.fit_variable("landcover", [1, 1, 2, 2, 3, 3, np.nan, np.nan],
                                       [0, 0, 1, 1, 0, 1, 0, 1], "categorical")
@@ -50,13 +68,17 @@ class BinningTests(unittest.TestCase):
     def test_fire_sizes_are_numerical_landcover_is_categorical_and_legacy_flags_are_excluded(self):
         types = baseline.predictor_types()
         self.assertEqual(types["landcover"], "categorical")
-        for name in ("90_day_fire_size", "2_year_90_day_fire_size"):
+        for name in ("14_day_fire_size", "2_year_14_day_fire_size"):
             self.assertEqual(types[name], "numerical")
         self.assertEqual(sum(t == "numerical" for t in types.values()), 12)
         for name in ("date", "time", "cell", "lat", "lon", "partition", "is_large_fire", "fuel_type",
                      "previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
                      "previous_fire_cumulative_size_90d"):
             self.assertNotIn(name, types)
+        self.assertNotIn("90_day_fire_size", types)
+        self.assertNotIn("2_year_90_day_fire_size", types)
+        self.assertNotIn("7_day_fire_size", types)
+        self.assertNotIn("2_year_7_day_fire_size", types)
 
     def test_invalid_inputs_fail_without_silently_reducing_bin_count(self):
         for values, target, message in (

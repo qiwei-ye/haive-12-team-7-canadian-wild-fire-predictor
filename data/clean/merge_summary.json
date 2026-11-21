@@ -6586,8 +6586,8 @@
     "tas",
     "30_day_pr",
     "7_day_min_avg_tas",
-    "90_day_fire_size",
-    "2_year_90_day_fire_size",
+    "14_day_fire_size",
+    "2_year_14_day_fire_size",
     "is_large_fire"
   ],
   "units": {
@@ -6604,15 +6604,15 @@
     "tas": "degC",
     "30_day_pr": "mm",
     "7_day_min_avg_tas": "degC",
-    "90_day_fire_size": "ha",
-    "2_year_90_day_fire_size": "ha"
+    "14_day_fire_size": "ha",
+    "2_year_14_day_fire_size": "ha"
   },
   "definitions": {
     "tas": "Missing historical daily tas uses the same-cell mean of originally available observations in [t-3, t+3] calendar days; observed values are unchanged; no iterative filling; windows without observations remain missing. The centered window uses future days and can cross temporal partition boundaries.",
     "30_day_pr": "sum of pr over 30 consecutive calendar days ending on and including the row date; missing if any required observation is unavailable",
     "7_day_min_avg_tas": "min of tas over 7 consecutive calendar days ending on and including the row date; missing if any required observation is unavailable",
-    "90_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 90 calendar days, row date); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
-    "2_year_90_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 2 calendar years, row date - 90 calendar days); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
+    "14_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 14 calendar days, row date); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
+    "2_year_14_day_fire_size": "Sum of reported fire size_ha in this cell and its retained eight surrounding cells in [row date - 2 calendar years, row date - 14 calendar days); each fire contributes once, including small and large fires; missing if any contributing report has unknown area, otherwise zero when no reports qualify. Uses stored snapshot areas, not daily burned-area increments or reconstructed as-of-date sizes.",
     "neighbour_offsets": [
       [
         -1,

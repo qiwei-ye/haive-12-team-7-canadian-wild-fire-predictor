@@ -104,12 +104,12 @@ class TreeModelTests(unittest.TestCase):
             tree_models.fit_tree_classifier(features.iloc[:6], [0, 0, 0, 0, 0, 1], Mock(), {})
 
     def test_one_hot_is_training_only_and_importances_aggregate_to_selected_features(self):
-        training = pd.DataFrame({"tas": [4., 8., 12.], "90_day_fire_size": [0, 1, 0],
+        training = pd.DataFrame({"tas": [4., 8., 12.], "14_day_fire_size": [0, 1, 0],
                                  "landcover": [1, 2, 1]})
         encoder = tree_models.build_preprocessor(training.columns)
         encoded = encoder.fit_transform(training)
         np.testing.assert_array_equal(encoded[:, :2], training.iloc[:, :2])
-        heldout = pd.DataFrame({"tas": [19.], "90_day_fire_size": [1], "landcover": [99]})
+        heldout = pd.DataFrame({"tas": [19.], "14_day_fire_size": [1], "landcover": [99]})
         np.testing.assert_array_equal(encoder.transform(heldout), [[19., 1., 0., 0.]])
         np.testing.assert_array_equal(encoder.named_transformers_["nominal"].categories_[0], [1, 2])
         pipeline = SimpleNamespace(named_steps={"preprocessing": encoder,
@@ -158,7 +158,7 @@ class TreeModelTests(unittest.TestCase):
 
     def test_xgboost_stopping_is_disjoint_from_scoring_and_final_refit_uses_all_training(self):
         features = pd.DataFrame({
-            "tas": np.arange(100), "90_day_fire_size": np.arange(100) % 2,
+            "tas": np.arange(100), "14_day_fire_size": np.arange(100) % 2,
             "landcover": np.where(np.arange(100) == 99, 99, 1 + np.arange(100) % 2),
         })
         y = np.arange(100) % 2

@@ -83,8 +83,8 @@ cloning; if these files contain pointers instead of NetCDF data, run
 | `hurs`, `pr`, `sfcWind`, `tas` | Historical ORRC predictors, retaining the processed units in configuration. Missing daily `tas` uses the centered mean rule below. |
 | `MIN_ELEV`, `MAX_ELEV`, `MEAN_ELEV`, `ELEVDIFF` | Processed ecodistrict elevation attributes, in metres. |
 | `landcover` | Modal 2020 land-cover category code; categorical, without interpolation. |
-| `90_day_fire_size` | Reported fire area in ha across the centre cell and eight retained neighbours from `t-90` through `t-1`, inclusive; today is excluded. |
-| `2_year_90_day_fire_size` | Reported fire area in ha across the same neighbourhood from `t-2 calendar years` through `t-91`, inclusive. |
+| `14_day_fire_size` | Reported fire area in ha across the centre cell and eight retained neighbours from `t-14` through `t-1`, inclusive; today is excluded. |
+| `2_year_14_day_fire_size` | Reported fire area in ha across the same neighbourhood from `t-2 calendar years` through `t-15`, inclusive. |
 | `30_day_pr` | Sum of daily `pr` over the current day and preceding 29 calendar days, in mm. |
 | `7_day_min_avg_tas` | Minimum daily average `tas` over the current day and preceding six calendar days, in degC. |
 | `is_large_fire` | 1 if at least one reported fire assigned to this cell/date meets the configured large-fire threshold; otherwise 0, including missing indicators and unknown reported fire sizes. |
@@ -93,12 +93,12 @@ Both fire-size predictors use a centred 3-by-3 neighbourhood: the current cell
 and up to eight retained Canadian neighbours. Excluded cells remain absent.
 `ROLLING_FIRE_FEATURES` in configuration defines two disjoint intervals:
 
-- `90_day_fire_size`: `[t-90 calendar days, t)`, including `t-90` and excluding today.
-- `2_year_90_day_fire_size`: `[t-2 calendar years, t-90 calendar days)`, ending at `t-91`.
+- `14_day_fire_size`: `[t-14 calendar days, t)`, including `t-14` and excluding today.
+- `2_year_14_day_fire_size`: `[t-2 calendar years, t-14 calendar days)`, ending at `t-15`.
 
 Calendar-year offsets handle leap days; the windows do not overlap or leave a gap.
-For the first training date, 2020-09-01, the recent interval is 2020-06-03 through
-2020-08-31 and the older interval is 2018-09-01 through 2020-06-02. Processed fire
+For the first training date, 2020-09-01, the recent interval is 2020-08-18 through
+2020-08-31 and the older interval is 2018-09-01 through 2020-08-17. Processed fire
 records cover both. Reports cross partition boundaries and omitted CSV dates
 remain eligible. Each fire contributes its stored area once, including small and
 large fires. An unknown area makes the affected feature total missing; no
@@ -125,9 +125,8 @@ still unavailable. Their filled temperatures contribute to later seven-day minim
 Weather/static predictors, targets, and the older fire-size feature are complete.
 Both fire-size features are complete across all partitions. The 24 unavailable
 CWFIS areas were replaced with matched NWT published zeros before computing the
-totals, resolving 4,827 previously missing test values in `90_day_fire_size`.
-Other fires' known areas still contribute to those totals. Training/validation,
-the older fire-size feature, and all target labels are unchanged by this fallback.
+totals. Other fires' known areas still contribute to those totals. Training and
+validation records and all target labels are unchanged by this area fallback.
 Processed climate files retain their complete daily time coordinates, including
 the four dates excluded from the clean CSVs. Raw datasets remain unchanged.
 

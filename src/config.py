@@ -152,10 +152,10 @@ FIRE_NEIGHBOUR_OFFSETS = tuple(
     for column in (-1, 0, 1)
     if (row, column) != (0, 0)
 )
-FIRE_RECENT_WINDOW_DAYS = 90
+FIRE_RECENT_WINDOW_DAYS = 14
 ROLLING_FIRE_FEATURES = {
-    "90_day_fire_size": {"lookback": {"days": FIRE_RECENT_WINDOW_DAYS}, "lag_days": 0, "units": "ha"},
-    "2_year_90_day_fire_size": {"lookback": {"years": 2}, "lag_days": FIRE_RECENT_WINDOW_DAYS, "units": "ha"},
+    "14_day_fire_size": {"lookback": {"days": FIRE_RECENT_WINDOW_DAYS}, "lag_days": 0, "units": "ha"},
+    "2_year_14_day_fire_size": {"lookback": {"years": 2}, "lag_days": FIRE_RECENT_WINDOW_DAYS, "units": "ha"},
 }
 ROLLING_WEATHER_FEATURES = {
     "30_day_pr": {"variable": "pr", "days": 30, "aggregation": "sum", "units": "mm"},
@@ -174,6 +174,9 @@ TAS_FILL_DEFINITION = (
 BINNING_NUMERICAL_BINS = 5
 BINNING_CATEGORICAL_PREDICTORS = ("landcover",)
 BINNING_OUTPUT_PATH = OUTPUTS_DIR / "binning.csv"
+# The recent fourteen-day area is mostly zero; smaller pre-bins permit five intervals.
+# Other predictors retain OptBinning's existing default pre-binning settings.
+BINNING_PREDICTOR_PARAMETERS = {"14_day_fire_size": {"min_prebin_size": 0.01}}
 
 # Greedy IV-ranked selection on raw training predictors; nominal land cover is exempt.
 VARIABLE_SELECTION_CORRELATION_THRESHOLD = 0.6

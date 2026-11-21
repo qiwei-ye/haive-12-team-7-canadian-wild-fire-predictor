@@ -5,7 +5,7 @@ for all models. Regression outputs for the WoE logistic baseline are stored in
 `baseline/`. Raw selected-feature tree-model outputs are stored separately in
 `randomforest/` and `xgboost/` when those models are explicitly run.
 
-Fire-size predictors use `[t-90 days, t)` and `[t-2 calendar years, t-90 days)`
+Fire-size predictors use `[t-14 days, t)` and `[t-2 calendar years, t-14 days)`
 over the centre cell and eight retained neighbours. The current day is excluded.
 After changing these definitions, rebuild preparation stages in order, then
 refit models after resolving any missing selected predictors:
@@ -36,6 +36,10 @@ climate, rolling weather, and cumulative fire-area predictors each receive exact
 five OptBinning intervals, maximizing IV without a monotonicity constraint. Intervals are
 left-inclusive and right-exclusive; the outer bounds are infinite. Failure to
 obtain five optimal bins stops the run without replacing the previous output.
+The mostly-zero `14_day_fire_size` uses a configured minimum pre-bin fraction of
+1%, permitting five intervals despite its sparse positive values. Other numerical
+predictors keep the existing default pre-binning settings. The `min_prebin_size`
+column records the setting actually used; final bin counts remain five.
 Land cover keeps one bin per observed training category. Categories are never combined, including categories
 with no fire events. Dates, cell IDs, coordinates, partition labels, and the target
 are excluded from the predictor list.
@@ -47,9 +51,9 @@ training sample/event counts, and target name document the fit. Missing predicto
 values, if present, receive a separate bin beyond the five numerical intervals.
 No empty special/missing bins or total rows are exported.
 
-`90_day_fire_size` and `2_year_90_day_fire_size` are numerical, in hectares.
-The recent window includes `t-90` through `t-1`; the older window includes the
-two-year anniversary through `t-91`. Each fire contributes once in its window
+`14_day_fire_size` and `2_year_14_day_fire_size` are numerical, in hectares.
+The recent window includes `t-14` through `t-1`; the older window includes the
+two-year anniversary through `t-15`. Each fire contributes once in its window
 across the centre cell and eight retained neighbours. Unknown areas propagate to
 missing values, while no qualifying report gives zero. Stored snapshot sizes are
 used without reconstructing historical as-of-date sizes. Previous binary fire
@@ -60,8 +64,8 @@ Rebuild the clean data, binning/WoE, and variable selection after changing these
 features. Existing model outputs remain from their previous fit until refitted.
 All current selected predictors are complete. Matching NWT published sizes,
 including zeros, replaced 24 unavailable CWFIS areas before computing rolling
-totals, resolving 4,827 previously missing test values in `90_day_fire_size`.
-Training/validation and the training-fitted binning/selection are unchanged.
+totals. Both fourteen-day and older fire-size predictors use these processed areas.
+Rebuilding the changed windows refits training binning, WoE/IV, and selection.
 
 WoE uses `ln((bin non-events / total non-events) / (bin events / total events))`;
 positive WoE indicates a lower large-fire rate. IV is the sum of

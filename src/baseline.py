@@ -100,6 +100,7 @@ def fit_variable(name, values, target, variable_type):
         raise ValueError(f"{name}: no observed training values")
 
     rows = []
+    minimum_prebin_size = np.nan
     if variable_type == "numerical":
         count = config.BINNING_NUMERICAL_BINS
         if np.unique(observed).size < count:
@@ -107,10 +108,12 @@ def fit_variable(name, values, target, variable_type):
         model = OptimalBinning(
             name=name, dtype="numerical", min_n_bins=count, max_n_bins=count,
             monotonic_trend=None, random_state=config.RANDOM_SEED,
+            **config.BINNING_PREDICTOR_PARAMETERS.get(name, {}),
         ).fit(values, target)
         if model.status != "OPTIMAL" or len(model.splits) + 1 != count:
             raise ValueError(f"{name}: exactly {count} optimal numerical bins unavailable (status={model.status})")
         table = model.binning_table.build(add_totals=False)
+        minimum_prebin_size = model.min_prebin_size
         bounds = np.r_[-np.inf, model.splits, np.inf]
         for i in range(count):
             lower, upper = map(float, bounds[i:i + 2])
@@ -154,6 +157,7 @@ def fit_variable(name, values, target, variable_type):
     result["woe_status"] = np.select([result.event.eq(0), result.non_event.eq(0)],
                                      ["zero_events", "zero_non_events"], default="finite")
     result["regular_bins"] = regular_bins
+    result["min_prebin_size"] = minimum_prebin_size
     result["method"], result["solver_status"] = method, status
     if result["count"].sum() != len(target):
         raise ValueError(f"{name}: bin counts do not cover every training row")

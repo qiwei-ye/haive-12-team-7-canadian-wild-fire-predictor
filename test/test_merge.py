@@ -83,7 +83,7 @@ class MergeTests(unittest.TestCase):
         reindexed = climate.isel(time=[i for i in range(70) if i != 40]).reindex(time=dates)
         self.assertTrue(np.isnan(data_merge.rolling_weather_features(reindexed)["7_day_min_avg_tas"].isel(time=41)))
 
-    def test_90_day_area_includes_nine_cells_lower_bound_and_excludes_today(self):
+    def test_14_day_area_includes_nine_cells_lower_bound_and_excludes_today(self):
         grid = create_grid(box(-100, 50, -95, 55))
         neighbours = data_merge.connecting_cells(grid)
         day = pd.Timestamp("2020-09-01")
@@ -91,21 +91,21 @@ class MergeTests(unittest.TestCase):
         records = pd.DataFrame({
             "_cell_index": [*local, 12, 12, 12, 0],
             "report_date": [day - pd.Timedelta(days=1)] * 9 +
-                           [day - pd.Timedelta(days=90), day - pd.Timedelta(days=91), day, day - pd.Timedelta(days=1)],
+                           [day - pd.Timedelta(days=14), day - pd.Timedelta(days=15), day, day - pd.Timedelta(days=1)],
             "size_ha": [*range(1, 10), .5, 1000., 10000., 1e6],
         })
         original = records.copy(deep=True)
         values = data_merge.rolling_fire_features(records, [day, day + pd.Timedelta(days=1)], neighbours)[
-            "90_day_fire_size"]
+            "14_day_fire_size"]
         self.assertEqual(values[0, 12], 45.5)
         self.assertEqual(values[1, 12], 10045.)
         pd.testing.assert_frame_equal(records, original)
 
-    def test_90_day_area_missing_sizes_propagate_and_expire_without_affecting_distant_cells(self):
+    def test_14_day_area_missing_sizes_propagate_and_expire_without_affecting_distant_cells(self):
         grid = create_grid(box(-100, 50, -97, 53))
         neighbours = data_merge.connecting_cells(grid)
         day = pd.Timestamp("2020-09-01")
-        days = [day + pd.Timedelta(days=offset) for offset in (0, 1, 90, 91)]
+        days = [day + pd.Timedelta(days=offset) for offset in (0, 1, 14, 15)]
         days += [day + pd.DateOffset(years=2), day + pd.DateOffset(years=2, days=1)]
         for missing in (np.nan, "", -1., np.inf):
             with self.subTest(missing=missing):
@@ -113,13 +113,13 @@ class MergeTests(unittest.TestCase):
                     "report_date": [day - pd.Timedelta(days=1), day, day - pd.Timedelta(days=1)],
                     "size_ha": [3.25, missing, 0.]})
                 fields = data_merge.rolling_fire_features(records, days, neighbours)
-                values = fields["90_day_fire_size"]
+                values = fields["14_day_fire_size"]
                 self.assertEqual(values[0, 0], 3.25)
                 self.assertTrue(np.isnan(values[1, [0, 1, 3, 4]]).all())
                 self.assertTrue(np.isnan(values[2, [0, 1, 3, 4]]).all())
                 self.assertTrue((values[:, 8] == 0).all())
                 self.assertTrue((values[3] == 0).all())
-                older = fields["2_year_90_day_fire_size"]
+                older = fields["2_year_14_day_fire_size"]
                 self.assertEqual(older[2, 0], 3.25)
                 self.assertTrue(np.isnan(older[3, 0]))
                 self.assertTrue(np.isnan(older[4, 0]))
@@ -127,7 +127,7 @@ class MergeTests(unittest.TestCase):
                 empty = data_merge.rolling_fire_features(records.iloc[:0], days, neighbours)
                 self.assertTrue(all((value == 0).all() for value in empty.values()))
 
-    def test_90_day_area_matches_direct_report_sum_across_leap_days_and_gaps(self):
+    def test_14_day_area_matches_direct_report_sum_across_leap_days_and_gaps(self):
         neighbours = data_merge.connecting_cells(self.grid)
         rng = np.random.default_rng(config.RANDOM_SEED)
         origin = pd.Timestamp("2019-12-01")
@@ -139,8 +139,8 @@ class MergeTests(unittest.TestCase):
         fields = data_merge.rolling_fire_features(records, days, neighbours)
         for name, values in fields.items():
             for index, day in enumerate(days):
-                lower = day - (pd.Timedelta(days=90) if name == "90_day_fire_size" else pd.DateOffset(years=2))
-                upper = day if name == "90_day_fire_size" else day - pd.Timedelta(days=90)
+                lower = day - (pd.Timedelta(days=14) if name == "14_day_fire_size" else pd.DateOffset(years=2))
+                upper = day if name == "14_day_fire_size" else day - pd.Timedelta(days=14)
                 for cell in range(len(neighbours)):
                     local = [cell, *neighbours[cell][neighbours[cell] >= 0]]
                     reports = records.loc[records._cell_index.isin(local)
@@ -148,17 +148,22 @@ class MergeTests(unittest.TestCase):
                     expected = np.nan if reports.size_ha.isna().any() else reports.size_ha.sum()
                     np.testing.assert_allclose(values[index, cell], expected, rtol=1e-12, atol=1e-8)
 
-    def test_fire_windows_include_two_year_lower_bound_and_partition_at_day_90(self):
+    def test_fire_windows_include_two_year_lower_bound_and_partition_at_day_14(self):
+        self.assertEqual(config.FIRE_RECENT_WINDOW_DAYS, 14)
+        self.assertEqual(config.ROLLING_FIRE_FEATURES["14_day_fire_size"],
+                         {"lookback": {"days": 14}, "lag_days": 0, "units": "ha"})
+        self.assertEqual(config.ROLLING_FIRE_FEATURES["2_year_14_day_fire_size"],
+                         {"lookback": {"years": 2}, "lag_days": 14, "units": "ha"})
         day = pd.Timestamp("2026-06-10")
         records = pd.DataFrame({"_cell_index": [0] * 7,
             "report_date": [day - pd.DateOffset(years=2, days=1), day - pd.DateOffset(years=2),
-                            day - pd.Timedelta(days=91), day - pd.Timedelta(days=90),
+                            day - pd.Timedelta(days=15), day - pd.Timedelta(days=14),
                             day - pd.Timedelta(days=1), day, day + pd.Timedelta(days=1)],
             "size_ha": [1000., 2., 3., 5., 7., 11., 13.]})
         neighbours = data_merge.connecting_cells(self.grid.isel(cell=[0]))
         fields = data_merge.rolling_fire_features(records, [day], neighbours)
-        self.assertEqual(fields["90_day_fire_size"][0, 0], 12.)
-        self.assertEqual(fields["2_year_90_day_fire_size"][0, 0], 5.)
+        self.assertEqual(fields["14_day_fire_size"][0, 0], 12.)
+        self.assertEqual(fields["2_year_14_day_fire_size"][0, 0], 5.)
         self.assertEqual(sum(values[0, 0] for values in fields.values()), 17.)
 
     def test_two_year_area_window_uses_calendar_anniversaries_across_leap_days(self):
@@ -167,7 +172,7 @@ class MergeTests(unittest.TestCase):
             "size_ha": [1000., 2., 3.]})
         neighbours = data_merge.connecting_cells(self.grid.isel(cell=[0]))
         fields = data_merge.rolling_fire_features(records, pd.to_datetime(["2024-02-29", "2024-03-01"]), neighbours)
-        np.testing.assert_array_equal(fields["2_year_90_day_fire_size"][:, 0], [5., 3.])
+        np.testing.assert_array_equal(fields["2_year_14_day_fire_size"][:, 0], [5., 3.])
 
     def fixture(self, root):
         processed = root / "processed"
@@ -227,10 +232,10 @@ class MergeTests(unittest.TestCase):
             self.assertEqual(first.is_large_fire.sum(), 0)
             self.assertEqual(first["30_day_pr"].iloc[0], 300)
             self.assertEqual(first["7_day_min_avg_tas"].iloc[0], 10)
-            self.assertTrue(first["90_day_fire_size"].eq(0).all())
+            self.assertTrue(first["14_day_fire_size"].eq(0).all())
             testing = pd.read_csv(root / "clean" / "test" / "2020-09-05.csv")
-            self.assertTrue(testing["90_day_fire_size"].isna().all())
-            self.assertTrue(testing["2_year_90_day_fire_size"].eq(0).all())
+            self.assertTrue(testing["14_day_fire_size"].isna().all())
+            self.assertTrue(testing["2_year_14_day_fire_size"].eq(0).all())
             for legacy in ("previous_large_fire", "previous_large_fire_neighbour", "previous_small_fire_neighbour",
                            "previous_fire_cumulative_size_90d"):
                 self.assertNotIn(legacy, testing)
@@ -294,8 +299,8 @@ class MergeTests(unittest.TestCase):
                 ("validation", "2020-09-04"), ("test", "2020-09-06")])
             self.assertFalse(any(path.exists() for path in stale))
             later = pd.read_csv(destination / "training" / "2020-09-03.csv")
-            self.assertTrue(later["90_day_fire_size"].isna().all())
-            self.assertTrue(later["2_year_90_day_fire_size"].eq(0).all())
+            self.assertTrue(later["14_day_fire_size"].isna().all())
+            self.assertTrue(later["2_year_14_day_fire_size"].eq(0).all())
             with xr.open_dataset(destination / config.CLEAN_MERGED_FILENAME) as merged:
                 self.assertEqual(pd.DatetimeIndex(merged.time.values).strftime("%Y-%m-%d").tolist(),
                                  ["2020-09-01", "2020-09-03", "2020-09-04", "2020-09-06"])

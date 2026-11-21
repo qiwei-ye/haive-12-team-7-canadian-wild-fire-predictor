@@ -37,7 +37,7 @@ Training/validation dates are split chronologically using the configured fractio
 Fire processing begins in September 2017; August 2020 climate is stored as history
 before the clean modelling window. The two numerical fire-size predictors sum
 stored areas across the centre cell and eight retained neighbours over
-[t-90 days, t) and [t-2 calendar years, t-90 days). Today is excluded from both;
+[t-14 days, t) and [t-2 calendar years, t-14 days). Today is excluded from both;
 unknown areas produce missing totals. Future features require observations
 covering the relevant windows.
 Weather features are inclusive 30-day precipitation sums and 7-day minima of daily
